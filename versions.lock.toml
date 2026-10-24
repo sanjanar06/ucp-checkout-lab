@@ -1,0 +1,26 @@
+# Pinned for the whole project. Do not change mid-project (Project Guide, ground rules).
+# Pinned on 2026-10-24.
+
+[spec]
+# The newest spec release is v2026-08-25, but Google's conformance suite and the
+# Python sample store both still target 2026-04-08. Stage 2 requires passing the
+# official tests, so we pin the version those tests check.
+ucp_version = "2026-04-08"
+repo = "https://github.com/Universal-Commerce-Protocol/ucp"
+tag = "v2026-04-08"
+commit = "48127e78d89125afee9d507f3d48748e3c66eda8"
+
+[python_sdk]
+repo = "https://github.com/Universal-Commerce-Protocol/python-sdk"
+tag = "v2026-04-08"
+commit = "298c2958faec9065fae1891018a3342e46fc2215"
+
+[samples]
+# No tags; pinned to main as of 2026-10-24. Base for the fake stores (rest/python).
+repo = "https://github.com/Universal-Commerce-Protocol/samples"
+commit = "e7c9c124864108cbb35e5102beeac9cbef80a154"
+
+[conformance]
+# No tags; pinned to main as of 2026-10-24. Declares ucp_version 2026-04-08.
+repo = "https://github.com/Universal-Commerce-Protocol/conformance"
+commit = "016ecbc22240affdec4429a60d539bedd04ab51b"
