@@ -1,13 +1,13 @@
 """Stage 1 check: one test call to a free model, including a tool call.
 
-Usage:
-    python scripts/smoke_test.py ollama
-    python scripts/smoke_test.py openrouter
-    python scripts/smoke_test.py gemini
-    python scripts/smoke_test.py openrouter --model google/gemma-4-31b-it:free
+Usage (from the repo root):
+    docker compose run --rm smoke ollama
+    docker compose run --rm smoke openrouter
+    docker compose run --rm smoke gemini
+    docker compose run --rm smoke openrouter --model google/gemma-4-31b-it:free
 
-Every call is appended to runs/smoke.jsonl (model, provider, date, settings,
-latency, tokens, cost). Standard library only.
+Every call is appended to $LAB_DATA_DIR/runs/smoke.jsonl (model, provider,
+date, settings, latency, tokens, cost), outside the repo. Standard library only.
 """
 
 import argparse
@@ -21,22 +21,24 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = Path(os.environ.get("LAB_DATA_DIR", ROOT.parent / "lab-data"))
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 
 PROVIDERS = {
     "ollama": {
-        "url": "http://localhost:11434/v1/chat/completions",
+        "url": f"{OLLAMA_BASE_URL}/v1/chat/completions",
         "key_env": None,
         "default_model": "qwen3:8b",
     },
     "openrouter": {
         "url": "https://openrouter.ai/api/v1/chat/completions",
         "key_env": "OPENROUTER_API_KEY",
-        "default_model": "google/gemma-4-31b-it:free",
+        "default_model": "nvidia/nemotron-3.5-super-vl:free",
     },
     "gemini": {
         "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         "key_env": "GEMINI_API_KEY",
-        "default_model": "gemini-2.5-flash",
+        "default_model": "gemini-3.8-flash",
     },
 }
 
@@ -131,8 +133,9 @@ def main():
         "tool_call_ok": tool_ok,
         "error": error,
     }
-    (ROOT / "runs").mkdir(exist_ok=True)
-    with open(ROOT / "runs" / "smoke.jsonl", "a") as f:
+    runs_dir = DATA_DIR / "runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    with open(runs_dir / "smoke.jsonl", "a") as f:
         f.write(json.dumps(record) + "\n")
 
     print(json.dumps(record, indent=2))
