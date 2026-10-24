@@ -11,9 +11,12 @@ tag = "v2026-04-08"
 commit = "48127e78d89125afee9d507f3d48748e3c66eda8"
 
 [python_sdk]
-repo = "https://github.com/Universal-Commerce-Protocol/python-sdk"
-tag = "v2026-04-08"
-commit = "298c2958faec9065fae1891018a3342e46fc2215"
+# The sample store needs ucp-sdk>=0.4.6,<0.5 and the conformance suite needs
+# ucp-sdk==0.4.6, both from PyPI. (The python-sdk git tag v2026-04-08 is 0.4.0,
+# which neither uses.) Corrected on 2026-10-24.
+package = "ucp-sdk"
+version = "0.4.6"
+source = "https://pypi.org/project/ucp-sdk/0.4.6/"
 
 [samples]
 # No tags; pinned to main as of 2026-10-24. Base for the fake stores (rest/python).
