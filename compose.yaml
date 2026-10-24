@@ -1,4 +1,8 @@
 # Every part of the lab runs here. Outputs go to ../lab-data, never into the repo.
+x-sim-secret: &sim-secret
+  # Dev-only value for the store's /testing endpoints; not a real secret.
+  SIMULATION_SECRET: lab-sim-secret
+
 services:
   smoke:
     build: .
@@ -12,3 +16,34 @@ services:
       OLLAMA_BASE_URL: http://host.docker.internal:11434
     volumes:
       - ../lab-data:/data
+
+  # Google's sample store, seeded with the flower_shop catalog.
+  store-flower:
+    build: stores/ucp_store
+    environment:
+      <<: *sim-secret
+      STORE_NAME: flower_shop
+      RESET: ${RESET:-0}
+    ports:
+      - "127.0.0.1:8182:8182"
+    volumes:
+      - ../lab-data:/data
+      - ./stores/seed:/seed:ro
+
+  # Google's official UCP tests, run against the flower store.
+  conformance:
+    build:
+      context: tests
+      dockerfile: conformance.Dockerfile
+    environment:
+      <<: *sim-secret
+      SERVER_URL: http://localhost:8182
+    command: ["--junitxml=/data/conformance/flower_shop.xml"]
+    # Share the store's network so "localhost" means the same place for both:
+    # the suite runs its own webhook receiver and tells the store to call it there.
+    network_mode: service:store-flower
+    volumes:
+      - ../lab-data:/data
+    depends_on:
+      store-flower:
+        condition: service_healthy
