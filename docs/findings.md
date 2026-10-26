@@ -33,7 +33,8 @@ not yet reproduced), or **fixed in lab** (we changed our copy).
 - **Why the official tests miss it:** the conformance suite only sends valid
   option ids.
 - **Upstream:** not fixed in Google's `samples` main as of 2026-10-26 (same
-  commit we pinned).
+  commit we pinned). Reported as
+  [samples#262](https://github.com/Universal-Commerce-Protocol/samples/issues/262).
 - **Lab fix:** the store now rejects an unknown option with `400
   INVALID_REQUEST`, naming the offered options, so an agent can correct
   itself. See `git log -p stores/ucp_store/services/checkout_service.py`.
