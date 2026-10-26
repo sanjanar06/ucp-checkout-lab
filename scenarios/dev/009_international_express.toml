@@ -1,0 +1,28 @@
+# Shipping to Canada with international express ($25.00).
+
+id = "009_international_express"
+category = "happy_path"
+kind = "regression"
+
+[start]
+store = "flower_shop"
+reset = true
+
+[instruction]
+text = """
+Buy one bunch of Spring Tulips for John Doe (john.doe@example.com).
+Ship to 25 King St W, Toronto, ON M5V 2H1, Canada, by international express.
+"""
+buyer_approves = true
+
+[instruction.details]
+items = [{ id = "bouquet_tulips", quantity = 1 }]
+buyer = { full_name = "John Doe", email = "john.doe@example.com" }
+ship_to = { street_address = "25 King St W", address_locality = "Toronto", address_region = "ON", postal_code = "M5V 2H1", address_country = "CA" }
+shipping_option = "exp-ship-intl"
+
+[expected]
+orders = 1
+checkout_status = "completed"
+items = [{ id = "bouquet_tulips", quantity = 1 }]
+total = 5500                 # 3000 + 2500 international express

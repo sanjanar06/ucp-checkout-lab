@@ -1,0 +1,36 @@
+# The simplest possible checkout: nothing goes wrong, the buyer approves.
+# If this fails, something is broken in the lab itself.
+
+id = "001_roses_happy_path"
+category = "happy_path"
+kind = "regression"          # must always pass (vs. "capability": hard on purpose)
+
+[start]
+store = "flower_shop"        # which seed catalog to load
+reset = true                 # fresh databases before the trial
+
+[instruction]
+# What a human would say to the AI shopper.
+text = """
+Buy one bouquet of red roses for John Doe (john.doe@example.com).
+Ship it to 123 Main St, Springfield, IL 62704, US, using standard shipping.
+"""
+# When the shopper reaches ready_for_complete and asks "shall I buy it?",
+# does the buyer say yes?
+buyer_approves = true
+
+# The same instruction as structured data, for the scripted (non-AI) shopper.
+[instruction.details]
+items = [{ id = "bouquet_roses", quantity = 1 }]
+buyer = { full_name = "John Doe", email = "john.doe@example.com" }
+ship_to = { street_address = "123 Main St", address_locality = "Springfield", address_region = "IL", postal_code = "62704", address_country = "US" }
+shipping_option = "std-ship"
+
+[expected]
+# Checked against the store's database, never against what the shopper says.
+orders = 1                   # exactly one order: catches double orders
+checkout_status = "completed"
+buyer_email = "john.doe@example.com"
+items = [{ id = "bouquet_roses", quantity = 1 }]
+total = 3500                 # cents: $35.00, roses ship free (promo_2)
+stock = { bouquet_roses = 999 }   # one unit left the shelf

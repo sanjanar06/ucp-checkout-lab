@@ -1,0 +1,29 @@
+# Two different items in one checkout.
+
+id = "005_orchid_and_pots"
+category = "happy_path"
+kind = "regression"
+
+[start]
+store = "flower_shop"
+reset = true
+
+[instruction]
+text = """
+Buy one White Orchid and one Ceramic Pot for John Doe (john.doe@example.com).
+Ship to 123 Main St, Springfield, IL 62704, US, standard shipping.
+"""
+buyer_approves = true
+
+[instruction.details]
+items = [{ id = "orchid_white", quantity = 1 }, { id = "pot_ceramic", quantity = 1 }]
+buyer = { full_name = "John Doe", email = "john.doe@example.com" }
+ship_to = { street_address = "123 Main St", address_locality = "Springfield", address_region = "IL", postal_code = "62704", address_country = "US" }
+shipping_option = "std-ship"
+
+[expected]
+orders = 1
+checkout_status = "completed"
+buyer_email = "john.doe@example.com"
+items = [{ id = "orchid_white", quantity = 1 }, { id = "pot_ceramic", quantity = 1 }]
+total = 6500                 # 4500 + 1500 + 500 standard shipping

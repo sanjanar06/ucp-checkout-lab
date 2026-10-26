@@ -31,16 +31,30 @@ docker compose run --rm smoke gemini        # or: openrouter, ollama
 | See its UCP info card | `curl localhost:8182/.well-known/ucp` |
 | Watch what it receives | `docker compose logs -f store-flower` |
 | Run Google's official UCP tests | `docker compose run --rm conformance` |
-| Print its orders and checkouts | `docker compose exec store-flower uv run --no-sync dump_transactions.py --transactions_db_path=/data/stores/flower_shop/transactions.db` |
-| Start over with a fresh store | `RESET=1 docker compose up -d --force-recreate store-flower` |
+| Print its orders and checkouts | `docker compose exec store-flower uv run --no-sync dump_transactions.py --transactions_db_path=/data/stores/flower_shop/live/transactions.db` |
+| Reset the store to its catalog (fast) | `curl -X POST localhost:8183/reset` |
+| Re-seed from the CSVs (after editing them) | `RESET=1 docker compose up -d --force-recreate store-flower` |
 | Stop everything | `docker compose down` |
+
+**The test lab (Stage 3)**
+
+Each scenario in `scenarios/dev/` is one test: the starting store, the
+instruction, and the expected end state. The harness resets the store, runs
+the shopper, and the grader checks the store's database against `[expected]`.
+
+| What | Command |
+| --- | --- |
+| Run all scenarios | `docker compose run --rm lab` |
+| Run some of them | `docker compose run --rm lab --only 002` |
+| Break the shopper on purpose | `docker compose run --rm lab --bug ignore_decline` (or `skip_cancel`, `wrong_quantity`) |
 
 **Where things end up**
 
 | Output | Location |
 | --- | --- |
 | Smoke test logs and traces | `../lab-data/runs/` |
-| Store databases | `../lab-data/stores/flower_shop/` |
+| Scenario runs (traces + `results.jsonl`) | `../lab-data/runs/<run_id>/` |
+| Store databases | `../lab-data/stores/flower_shop/live/` (`template/` is the clean copy) |
 | Official test reports | `../lab-data/conformance/` |
 
 `stores/ucp_store/` is Google's sample store, copied unchanged at a pinned

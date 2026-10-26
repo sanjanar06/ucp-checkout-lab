@@ -1,0 +1,29 @@
+# One item with paid US express shipping ($15.00).
+
+id = "004_tulips_express"
+category = "happy_path"
+kind = "regression"
+
+[start]
+store = "flower_shop"
+reset = true
+
+[instruction]
+text = """
+Buy one bunch of Spring Tulips for John Doe (john.doe@example.com).
+Ship to 123 Main St, Springfield, IL 62704, US, by express shipping.
+"""
+buyer_approves = true
+
+[instruction.details]
+items = [{ id = "bouquet_tulips", quantity = 1 }]
+buyer = { full_name = "John Doe", email = "john.doe@example.com" }
+ship_to = { street_address = "123 Main St", address_locality = "Springfield", address_region = "IL", postal_code = "62704", address_country = "US" }
+shipping_option = "exp-ship-us"
+
+[expected]
+orders = 1
+checkout_status = "completed"
+buyer_email = "john.doe@example.com"
+items = [{ id = "bouquet_tulips", quantity = 1 }]
+total = 4500                 # 3000 + 1500 express (US)

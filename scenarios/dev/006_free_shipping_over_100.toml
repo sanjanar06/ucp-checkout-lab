@@ -1,0 +1,28 @@
+# Subtotal over $100 makes standard shipping free (promotion promo_1).
+
+id = "006_free_shipping_over_100"
+category = "happy_path"
+kind = "regression"
+
+[start]
+store = "flower_shop"
+reset = true
+
+[instruction]
+text = """
+Buy three White Orchids for John Doe (john.doe@example.com).
+Ship to 123 Main St, Springfield, IL 62704, US, standard shipping.
+"""
+buyer_approves = true
+
+[instruction.details]
+items = [{ id = "orchid_white", quantity = 3 }]
+buyer = { full_name = "John Doe", email = "john.doe@example.com" }
+ship_to = { street_address = "123 Main St", address_locality = "Springfield", address_region = "IL", postal_code = "62704", address_country = "US" }
+shipping_option = "std-ship"
+
+[expected]
+orders = 1
+checkout_status = "completed"
+items = [{ id = "orchid_white", quantity = 3 }]
+total = 13500                # 3 x 4500, shipping free over $100

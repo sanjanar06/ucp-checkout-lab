@@ -17,6 +17,20 @@ services:
     volumes:
       - ../lab-data:/data
 
+  # Runs scenarios: reset store -> shopper -> grader. Code is mounted, so no
+  # rebuild is needed after editing scenarios or Python files.
+  lab:
+    build: .
+    entrypoint: ["python", "-m", "harness.run"]
+    environment:
+      LAB_DATA_DIR: /data
+    volumes:
+      - .:/app:ro
+      - ../lab-data:/data
+    depends_on:
+      store-flower:
+        condition: service_healthy
+
   # Google's sample store, seeded with the flower_shop catalog.
   store-flower:
     build: stores/ucp_store
@@ -25,7 +39,8 @@ services:
       STORE_NAME: flower_shop
       RESET: ${RESET:-0}
     ports:
-      - "127.0.0.1:8182:8182"
+      - "127.0.0.1:8182:8182"   # the store
+      - "127.0.0.1:8183:8183"   # its reset port (POST /reset)
     volumes:
       - ../lab-data:/data
       - ./stores/seed:/seed:ro
