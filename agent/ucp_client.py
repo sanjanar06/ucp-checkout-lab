@@ -50,6 +50,9 @@ class UcpClient:
     def create_checkout(self, body):
         return self._send("create_checkout", "POST", "/checkout-sessions", body)
 
+    def get_checkout(self, checkout_id):
+        return self._send("get_checkout", "GET", f"/checkout-sessions/{checkout_id}")
+
     def update_checkout(self, checkout_id, body, step="update_checkout"):
         return self._send(step, "PUT", f"/checkout-sessions/{checkout_id}", body)
 

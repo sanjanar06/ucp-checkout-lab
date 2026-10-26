@@ -46,7 +46,21 @@ the shopper, and the grader checks the store's database against `[expected]`.
 | --- | --- |
 | Run all scenarios | `docker compose run --rm lab` |
 | Run some of them | `docker compose run --rm lab --only 002` |
-| Break the shopper on purpose | `docker compose run --rm lab --bug ignore_decline` (or `skip_cancel`, `wrong_quantity`) |
+| Break the shopper on purpose | `docker compose run --rm lab --bug ignore_decline` (or `skip_cancel`, `wrong_quantity`, `no_ask`) |
+
+**AI shopper (Stage 4)**
+
+The same scenarios, with an AI model in the shopper's seat
+(`agent/ai_shopper.py`). It gets a short briefing and seven tools: six UCP
+actions plus `ask_buyer`. Free-tier "too busy" replies are retried and, if
+they never clear, the trial is marked ERROR rather than FAIL.
+
+| What | Command |
+| --- | --- |
+| All scenarios, default free model | `docker compose run --rm lab --agent ai --provider openrouter` |
+| Gemini instead | `docker compose run --rm lab --agent ai --provider gemini` |
+| A specific model | `docker compose run --rm lab --agent ai --provider openrouter --model google/gemma-4-31b-it:free` |
+| One scenario | add `--only 002` |
 
 **Where things end up**
 

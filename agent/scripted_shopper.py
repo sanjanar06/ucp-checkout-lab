@@ -7,7 +7,7 @@ scenario's [instruction.details], it:
   2. creates a checkout (items, buyer, discount codes)
   3. adds the shipping address
   4. picks the shipping option
-  5. stops at ready_for_complete and asks the buyer
+  5. stops at ready_for_complete and asks the buyer (agent/buyer.py)
   6. completes if the buyer approves, cancels if not
      (and cancels if the checkout never becomes ready)
 
@@ -15,21 +15,15 @@ scenario's [instruction.details], it:
   ignore_decline  completes even when the buyer says no
   skip_cancel     stops without cancelling when the buyer says no
   wrong_quantity  orders one more of the first item than asked
+  no_ask          completes without asking the buyer at all
 """
 
-BUGS = ("ignore_decline", "skip_cancel", "wrong_quantity")
+from agent.buyer import WALLET_CARD
 
-# The store's pretend card that always succeeds (stores/seed/*/payment_instruments.csv).
-TEST_CARD = {
-    "id": "instr_1",
-    "handler_id": "mock_payment_handler",
-    "type": "card",
-    "credential": {"type": "token", "token": "success_token"},
-    "display": {"brand": "Visa", "last_digits": "1234"},
-}
+BUGS = ("ignore_decline", "skip_cancel", "wrong_quantity", "no_ask")
 
 
-def run(client, details, buyer_approves, bug=None):
+def run(client, details, buyer, bug=None):
     """Run one trial. Returns a short log of what the shopper did and why."""
     log = []
     items = [dict(i) for i in details["items"]]
@@ -105,11 +99,16 @@ def run(client, details, buyer_approves, bug=None):
         return log
 
     total = next((t["amount"] for t in checkout.get("totals", []) if t["type"] == "total"), None)
-    log.append(f"asked buyer to approve total {total}; buyer says {'yes' if buyer_approves else 'no'}")
+    if bug == "no_ask":
+        approved = True
+        log.append("did not ask the buyer")
+    else:
+        approved = buyer.ask(f"Ready to buy for a total of {total} cents. Shall I complete it?")
+        log.append(f"asked buyer to approve total {total}; buyer says {'yes' if approved else 'no'}")
 
     # 6. Act on the buyer's answer.
-    if buyer_approves or bug == "ignore_decline":
-        status, reply = client.complete_checkout(checkout_id, {"payment": {"instruments": [TEST_CARD]}})
+    if approved or bug == "ignore_decline":
+        status, reply = client.complete_checkout(checkout_id, {"payment": {"instruments": [WALLET_CARD]}})
         log.append(f"completed ({status}), status {(reply or {}).get('status')}")
     elif bug == "skip_cancel":
         log.append("buyer declined; stopping without cancelling")

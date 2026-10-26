@@ -1415,6 +1415,15 @@ class CheckoutService:
                 (o for o in group.options if o.id == group.selected_option_id),
                 None,
               )
+              # Lab fix (docs/findings.md, F1): an option the store never
+              # offered used to be accepted silently, with no shipping
+              # charged and the checkout marked ready. Reject it instead.
+              if not selected_opt:
+                offered = ", ".join(o.id for o in group.options)
+                raise InvalidRequestError(
+                  f"Unknown shipping option '{group.selected_option_id}'."
+                  f" Offered options: {offered}"
+                )
               if selected_opt:
                 # Avoid double counting if already added.
                 # Multiple groups can have costs.

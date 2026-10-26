@@ -22,8 +22,12 @@ services:
   lab:
     build: .
     entrypoint: ["python", "-m", "harness.run"]
+    env_file:
+      - path: .env
+        required: false
     environment:
       LAB_DATA_DIR: /data
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
     volumes:
       - .:/app:ro
       - ../lab-data:/data
