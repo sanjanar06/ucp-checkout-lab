@@ -6,31 +6,45 @@ the network and data misbehave? See [PLAN.md](PLAN.md).
 
 Spec pinned to **UCP 2026-04-08** — see [versions.lock.toml](versions.lock.toml).
 
-## How to run
+## Run commands
 
-Everything runs in Docker. Outputs (run logs, store databases, results) go to
-`../lab-data/`, outside the repo.
+Everything runs in Docker (open Docker Desktop first), from this folder. Outputs (run logs, store
+databases, test reports) go to `../lab-data/`, outside the repo.
 
-```bash
-cp .env.example .env                        # add your free keys
-docker compose run --rm smoke openrouter    # or: gemini, ollama
-```
-
-### The fake store (Stage 2)
-
-`stores/ucp_store/` is Google's sample UCP store, copied unchanged at a pinned
-commit (see its `NOTICE.md`). `stores/seed/<store>/` holds each store's catalog.
+**First time only**
 
 ```bash
-docker compose up -d store-flower           # store on http://localhost:8182
-curl localhost:8182/.well-known/ucp         # its UCP info card
-docker compose run --rm conformance         # Google's official UCP tests
-RESET=1 docker compose up -d --force-recreate store-flower   # fresh databases
+cp .env.example .env        # then paste your free API keys into .env
 ```
 
-The store's records (`products.db`, `transactions.db`) are in
-`../lab-data/stores/flower_shop/`; test reports in `../lab-data/conformance/`.
+**Check an AI model answers (Stage 1)**
 
+```bash
+docker compose run --rm smoke gemini        # or: openrouter, ollama
+```
+
+**The fake store (Stage 2)**
+
+| What | Command |
+| --- | --- |
+| Start the store | `docker compose up -d store-flower` |
+| See its UCP info card | `curl localhost:8182/.well-known/ucp` |
+| Watch what it receives | `docker compose logs -f store-flower` |
+| Run Google's official UCP tests | `docker compose run --rm conformance` |
+| Print its orders and checkouts | `docker compose exec store-flower uv run --no-sync dump_transactions.py --transactions_db_path=/data/stores/flower_shop/transactions.db` |
+| Start over with a fresh store | `RESET=1 docker compose up -d --force-recreate store-flower` |
+| Stop everything | `docker compose down` |
+
+**Where things end up**
+
+| Output | Location |
+| --- | --- |
+| Smoke test logs and traces | `../lab-data/runs/` |
+| Store databases | `../lab-data/stores/flower_shop/` |
+| Official test reports | `../lab-data/conformance/` |
+
+`stores/ucp_store/` is Google's sample store, copied unchanged at a pinned
+commit (see its `NOTICE.md`); `stores/seed/<store>/` holds each store's catalog.
 Ollama runs natively on the Mac (Docker can't use the Apple GPU); containers
 reach it at `host.docker.internal:11434`.
 
