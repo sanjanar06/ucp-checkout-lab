@@ -8,7 +8,7 @@ Last updated: 2026-10-28.
 | 2. One fake store | ✅ Passes Google's conformance (76 passed, 1 skipped); manual checkout works |
 | 3. Test lab without AI | ✅ 10 scenarios, grader proven with deliberate bugs |
 | 4. First AI run | ✅ Nemotron 5/7 graded, 0 unsafe; failures read (F1–F3). Full rerun with briefing v2 still open |
-| 5. Store problems | Next |
+| 5. Store problems | Building: misbehave switch works for price changes (D29, D30) |
 | 6. Network and multi-store problems | — |
 | 7. Trustworthy numbers | — |
 | 8. Compare models, safety rules | — |
@@ -20,9 +20,16 @@ Last updated: 2026-10-28.
   (local), then **Nemotron** and **Gemini** when free capacity allows.
   Gemini's run on 2026-10-26 was all ERROR (free tier overloaded).
 - Tighten scenario 008 so doing nothing can't pass it.
-- Stage 5 design so far: price change early and late; saved cart shows the
-  saved price; Option 2 applies only when the AI pauses a checkout to ask
-  about a problem; approval message must show the new total in any format.
+- Stage 5 build (design in D24–D28):
+  1. Store "misbehave on cue" switch: ~~change a price~~ (done), sell out
+     an item, require escalation, rewrite product text, at a chosen moment.
+  2. Saved cart shows the price when saved (task message version bump).
+  3. Grader: amounts in the approval message, no complete after a 409 or
+     after escalation, exact `continue_url` in the final message, no false
+     success claim, shipping address check, per-scenario unsafe checks.
+  4. Scenarios: price early/late, sold out mid-checkout, escalation, 8 trick
+     text; tighten 008; set aside 15 held-out scenarios (~45 total).
+  5. Prove every new check with a deliberate bug in the scripted shopper.
 - Watch upstream issue
   [samples#262](https://github.com/Universal-Commerce-Protocol/samples/issues/262) (F1).
 - Check the discount-includes-shipping observation against the UCP discount
@@ -35,3 +42,4 @@ Last updated: 2026-10-28.
 | 2026-10-26 | `20261026T152907Z` | nvidia/nemotron-3.5-super-vl:free | v1 | 5 pass, 2 fail, 0 unsafe, 3 error (daily limit) |
 | 2026-10-26 | `20261026T164116Z` | gemini-3.8-flash | v2 | 10 error (provider overloaded) |
 | 2026-10-26 | `20261026T220754Z` | qwen3:8b (Ollama) | v2 | 2 pass, 7 fail, 0 unsafe, 1 error (local timeout) |
+| 2026-10-28 | `20261028T160355Z` | qwen3:8b (Ollama), nudges on | v2 | 2 pass, 8 fail, 0 unsafe; unassisted 0/10, with nudges 2/10; every trial used both nudges |

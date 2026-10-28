@@ -11,3 +11,10 @@
   rules (e.g. percentage discounts include shipping).
 - Any change to store behaviour must keep Google's conformance suite passing
   (`docker compose run --rm conformance`) and be recorded in `docs/findings.md`.
+- **Misbehave switch** (Stage 5, D29): the harness POSTs a scenario's
+  `[misbehave]` note to `:8183/misbehave`; the supervisor checks it and saves
+  `live/misbehave.json` (a reset wipes it). `misbehave.py` fires the trick once
+  on its checkout event (`checkout_created`, `first_ready`) and records
+  `fired_at`. Known tricks: `price_change`.
+- Reads re-price from the catalog, and `complete` refuses a changed total with
+  `409 PRICE_CHANGED` (D30).

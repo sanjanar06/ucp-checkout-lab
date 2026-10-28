@@ -8,9 +8,15 @@ template over the live databases and starts the store again.
   /data/stores/<STORE_NAME>/template/   seeded once from /seed/<STORE_NAME>
   /data/stores/<STORE_NAME>/live/       what the running store reads and writes
 
-Admin port 8183 (POST /reset, GET /health); the store itself is on 8182.
+It also holds the scenario's misbehave note (Stage 5, D29): POST /misbehave
+checks the note and saves it as live/misbehave.json, where the store reads it.
+A reset replaces live/, so a note never outlives its scenario.
+
+Admin port 8183 (POST /reset, POST /misbehave, GET /health); the store itself
+is on 8182.
 """
 
+import json
 import os
 import shutil
 import subprocess
@@ -33,6 +39,12 @@ ADMIN_PORT = 8183
 
 store = None
 lock = threading.Lock()
+
+# The tricks the store knows, and the keys each one needs besides kind and when.
+TRICKS = {
+    "price_change": {"item", "new_price"},
+}
+MOMENTS = {"checkout_created", "first_ready"}
 
 
 def db_args(folder):
@@ -91,16 +103,46 @@ def reset():
         start_store()
 
 
+def check_note(note):
+    """Return what's wrong with a misbehave note, or None if it's fine."""
+    kind = note.get("kind")
+    if kind not in TRICKS:
+        return f"unknown kind {kind!r}; known: {', '.join(sorted(TRICKS))}"
+    if note.get("when") not in MOMENTS:
+        return f"unknown when {note.get('when')!r}; known: {', '.join(sorted(MOMENTS))}"
+    expected = TRICKS[kind] | {"kind", "when"}
+    if set(note) != expected:
+        return f"{kind} needs exactly these keys: {', '.join(sorted(expected))}"
+    return None
+
+
 class Admin(BaseHTTPRequestHandler):
     def do_POST(self):
-        if self.path != "/reset":
+        if self.path == "/reset":
+            start = time.monotonic()
+            reset()
+            self.reply(200, f"reset in {time.monotonic() - start:.2f}s")
+        elif self.path == "/misbehave":
+            length = int(self.headers.get("Content-Length", 0))
+            try:
+                note = json.loads(self.rfile.read(length))
+            except json.JSONDecodeError:
+                self.reply(400, "misbehave note is not valid JSON")
+                return
+            problem = check_note(note)
+            if problem:
+                self.reply(400, problem)
+                return
+            with lock:
+                (LIVE / "misbehave.json").write_text(json.dumps(note))
+            self.reply(200, f"armed {note['kind']} on {note['when']}")
+        else:
             self.send_error(404)
-            return
-        start = time.monotonic()
-        reset()
-        self.send_response(200)
+
+    def reply(self, status, text):
+        self.send_response(status)
         self.end_headers()
-        self.wfile.write(f"reset in {time.monotonic() - start:.2f}s\n".encode())
+        self.wfile.write((text + "\n").encode())
 
     def do_GET(self):
         self.send_response(200 if self.path == "/health" else 404)

@@ -136,6 +136,19 @@ class InvalidRequestError(UcpError):
     )
 
 
+class PriceChangedError(UcpError):
+  """Lab addition (Stage 5): the total changed since the agent last saw it."""
+
+  def __init__(self, message: str):
+    """Initialize PriceChangedError."""
+    super().__init__(
+      message,
+      code="PRICE_CHANGED",
+      status_code=409,
+      severity=ErrorSeverity.REQUIRES_BUYER_REVIEW,
+    )
+
+
 class UcpVersionError(UcpError):
   """Raised when a UCP version string is invalid or unsupported."""
 

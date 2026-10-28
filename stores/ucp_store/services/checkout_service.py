@@ -46,8 +46,10 @@ from exceptions import IdempotencyConflictError
 from exceptions import InvalidRequestError
 from exceptions import OutOfStockError
 from exceptions import PaymentFailedError
+from exceptions import PriceChangedError
 from exceptions import ResourceNotFoundError
 import httpx
+import misbehave
 from models import UnifiedCheckout as Checkout
 from models import UnifiedCheckoutCreateRequest
 from models import UnifiedCheckoutUpdateRequest
@@ -461,6 +463,12 @@ class CheckoutService:
     if cached is not None:
       return Checkout(**cached)
 
+    # Lab addition (Stage 5): fire an armed trick after the reply is saved,
+    # so it shows from the agent's next request onward.
+    await misbehave.on_event("checkout_created", self.products_session)
+    if checkout.status == CheckoutStatus.READY_FOR_COMPLETE:
+      await misbehave.on_event("first_ready", self.products_session)
+
     return checkout
 
   async def get_checkout(
@@ -477,7 +485,13 @@ class CheckoutService:
     )
     await self.transactions_session.commit()
 
-    return await self._get_and_validate_checkout(checkout_id)
+    checkout = await self._get_and_validate_checkout(checkout_id)
+    # Lab addition (Stage 5, D30): a read shows today's prices, not the ones
+    # saved at the last update.
+    if checkout.status not in [CheckoutStatus.COMPLETED, CheckoutStatus.CANCELED]:
+      if await self._reprice(checkout):
+        await self._save_repriced(checkout)
+    return checkout
 
   async def update_checkout(
     self,
@@ -728,6 +742,9 @@ class CheckoutService:
     )
     if cached is not None:
       return Checkout(**cached)
+    # Lab addition (Stage 5): see create_checkout.
+    if existing.status == CheckoutStatus.READY_FOR_COMPLETE:
+      await misbehave.on_event("first_ready", self.products_session)
     return existing
 
   async def complete_checkout(
@@ -774,6 +791,19 @@ class CheckoutService:
 
     checkout = await self._get_and_validate_checkout(checkout_id)
     self._ensure_modifiable(checkout, "complete")
+
+    # Lab addition (Stage 5, D30): never charge a total the agent hasn't seen.
+    # If prices changed since the last reply, save the new totals and refuse.
+    # Reprice a copy: when nothing changed, the order is built from the
+    # checkout exactly as saved, as before.
+    repriced = checkout.model_copy(deep=True)
+    if await self._reprice(repriced):
+      await self._save_repriced(repriced)
+      raise PriceChangedError(
+        f"Prices changed since this checkout was last returned: total was"
+        f" {self._total(checkout)}, now {self._total(repriced)}. Review the"
+        " checkout with the buyer before completing."
+      )
 
     # Process Payment
     await self._process_payment(payment)
@@ -1258,6 +1288,28 @@ class CheckoutService:
     if not data:
       raise ResourceNotFoundError("Checkout session not found")
     return Checkout(**data)
+
+  @staticmethod
+  def _total(checkout: Checkout) -> int | None:
+    return next((t.amount for t in checkout.totals if t.type == "total"), None)
+
+  async def _reprice(self, checkout: Checkout) -> bool:
+    """Lab addition: recalculate from today's catalog; True if totals changed."""
+    def amounts():
+      return [(t.type, t.amount) for t in checkout.totals]
+
+    before = amounts()
+    await self._enrich_and_recalculate(checkout)
+    return amounts() != before
+
+  async def _save_repriced(self, checkout: Checkout) -> None:
+    await db.save_checkout(
+      self.transactions_session,
+      checkout.id,
+      checkout.status,
+      checkout.model_dump(mode="json", by_alias=True, exclude_none=True),
+    )
+    await self.transactions_session.commit()
 
   def _ensure_modifiable(self, checkout: Checkout, action: str) -> None:
     """Ensure that the checkout is in a state that allows modification."""

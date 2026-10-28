@@ -23,6 +23,7 @@ import os
 import sys
 import time
 import tomllib
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -53,12 +54,26 @@ def reset_store(store):
     urllib.request.urlopen(req, timeout=60).read()
 
 
+def misbehave_store(store, note):
+    """Hand the store this scenario's one trick (its [misbehave] table)."""
+    req = urllib.request.Request(
+        STORES[store]["admin"] + "/misbehave", method="POST",
+        data=json.dumps(note).encode(), headers={"Content-Type": "application/json"})
+    try:
+        urllib.request.urlopen(req, timeout=10).read()
+    except urllib.error.HTTPError as e:
+        # A mistyped [misbehave] block: stop now rather than run the wrong test.
+        sys.exit(f"store rejected the [misbehave] note: {e.read().decode().strip()}")
+
+
 def run_scenario(path, args):
     scenario = tomllib.loads(path.read_text())
     store = scenario["start"]["store"]
     instruction = scenario["instruction"]
     if scenario["start"].get("reset"):
         reset_store(store)
+    if "misbehave" in scenario:
+        misbehave_store(store, scenario["misbehave"])
 
     client = UcpClient(STORES[store]["url"])
     buyer = Buyer(instruction["buyer_approves"], client.transcript)
