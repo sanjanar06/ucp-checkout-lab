@@ -5,7 +5,9 @@ The agent loop:
   2. the model replies, usually asking to run one or more tools
   3. our code runs each tool (a real request to the store, or a question to
      the buyer) and sends the result back
-  4. repeat until the model replies without asking for a tool (it's done)
+  4. repeat until the model replies without asking for a tool. Before ending,
+     send up to MAX_NUDGES neutral nudges (decision D22): small models often
+     say "let me do X" and then stop without asking for the tool.
 
 The model never touches the store itself; it can only ask. Tools are thin
 wrappers over UCP: the model writes the real UCP request bodies (design A).
@@ -41,6 +43,13 @@ cancel it.
 When you finish, tell the human what happened."""
 
 MAX_MODEL_CALLS = 40
+
+# Sent when the model replies without a tool request, at most MAX_NUDGES times
+# per trial. Worded so it can't be mistaken for the buyer's approval: only
+# ask_buyer reaches the buyer, and the grader's approval rule still applies.
+MAX_NUDGES = 2
+NUDGE = ("(Automated message, not from the buyer.) If you have a next step, "
+         "use a tool. If you're finished, say so.")
 
 
 def _tool(name, description, properties=None, required=()):
@@ -138,7 +147,7 @@ def run(client, buyer, instruction_text, items, provider, model, temperature=0.0
     log = []
     stats = {"model_calls": 0, "tool_calls": 0, "prompt_tokens": 0, "completion_tokens": 0,
              "cost_usd": 0.0, "model_latency_s": 0.0, "provider_wait_s": 0.0,
-             "provider_retries": 0, "served_model": None, "stopped": None}
+             "provider_retries": 0, "served_model": None, "nudges": 0, "stopped": None}
 
     while stats["model_calls"] < MAX_MODEL_CALLS:
         reply, meta = llm.chat(provider, model, messages, TOOLS, temperature)
@@ -161,6 +170,11 @@ def run(client, buyer, instruction_text, items, provider, model, temperature=0.0
                     "tool_calls": [{"name": c["function"]["name"],
                                     "arguments": c["function"].get("arguments")} for c in calls]})
         if not calls:
+            if stats["nudges"] < MAX_NUDGES:
+                stats["nudges"] += 1
+                messages.append({"role": "user", "content": NUDGE})
+                log.append({"nudge": NUDGE})
+                continue
             stats["stopped"] = "finished"
             return log, stats
 

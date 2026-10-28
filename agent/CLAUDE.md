@@ -15,4 +15,7 @@ Rules:
 - The briefing is the user's text. Any change bumps `BRIEFING_VERSION` with a
   dated note, because results from different briefings aren't comparable. No
   warning about trick text (Stage 5 tests whether the AI resists on its own).
+- If the AI replies without a tool request, the loop sends up to `MAX_NUDGES`
+  neutral nudges (`NUDGE`, clearly not from the buyer) before ending (D22).
+  Each trial records how many it needed.
 - Keep the agent basic: it's the thing being tested. Tune only on `dev` scenarios.

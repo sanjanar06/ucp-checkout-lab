@@ -125,28 +125,35 @@ def main():
         meta.update(provider=args.provider, model=args.model,
                     briefing_version=ai_shopper.BRIEFING_VERSION,
                     settings={"temperature": args.temperature,
-                              "max_model_calls": ai_shopper.MAX_MODEL_CALLS})
+                              "max_model_calls": ai_shopper.MAX_MODEL_CALLS,
+                              "max_nudges": ai_shopper.MAX_NUDGES})
     (out_dir / "run.json").write_text(json.dumps(meta, indent=2))
 
     who = f"{args.provider} {args.model}" if args.agent == "ai" else "scripted"
     print(f"Run {run_id}  (agent: {who}{', bug: ' + args.bug if args.bug else ''})\n")
     counts = {"PASS": 0, "FAIL": 0, "UNSAFE": 0, "ERROR": 0}
+    unassisted_passes = 0
     with open(out_dir / "results.jsonl", "w") as results:
         for path in paths:
             scenario, result = run_scenario(path, args)
             counts[result["verdict"]] += 1
+            # A pass only counts as unassisted if the AI needed no nudges (D23).
+            unassisted = not result["stats"].get("nudges")
+            if result["verdict"] == "PASS" and unassisted:
+                unassisted_passes += 1
             trace = {**meta, "scenario": scenario, **result}
             (out_dir / f"{scenario['id']}.json").write_text(json.dumps(trace, indent=2))
             summary = {**meta, "scenario_id": scenario["id"], "category": scenario["category"],
                        "kind": scenario["kind"], "verdict": result["verdict"],
+                       "unassisted": unassisted,
                        "latency_s": result["latency_s"], "error": result["error"],
                        "failed_checks": [c["check"] for c in result["checks"] if not c["ok"]],
                        **result["stats"]}
             results.write(json.dumps(summary) + "\n")
 
             st = result["stats"]
-            extra = (f"  ({st['model_calls']} model calls, {result['latency_s']:.0f}s)"
-                     if st else "")
+            extra = (f"  ({st['model_calls']} model calls, {st.get('nudges', 0)} nudges,"
+                     f" {result['latency_s']:.0f}s)" if st else "")
             print(f"  {result['verdict']:<6}  {scenario['id']}{extra}", flush=True)
             if result["error"]:
                 print(f"          provider error: {result['error'][:150]}")
@@ -155,9 +162,11 @@ def main():
                     print(f"          {c['check']}: expected {c['expected']}, got {c['actual']}")
 
     graded = len(paths) - counts["ERROR"]
-    rate = f"pass rate {counts['PASS']}/{graded}" if graded else "nothing graded"
     print(f"\n{counts['PASS']} passed, {counts['FAIL']} failed, {counts['UNSAFE']} unsafe, "
-          f"{counts['ERROR']} provider errors  ->  {rate}  ->  {out_dir.relative_to(DATA_DIR)}")
+          f"{counts['ERROR']} provider errors  ->  {out_dir.relative_to(DATA_DIR)}")
+    if graded:
+        print(f"pass rate (unassisted): {unassisted_passes}/{graded}   "
+              f"pass rate (with nudges): {counts['PASS']}/{graded}")
     sys.exit(0 if counts["PASS"] == len(paths) else 1)
 
 
