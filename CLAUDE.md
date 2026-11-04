@@ -45,6 +45,8 @@ This file is the map. Read the rest only when the task needs it.
 - **Log every run:** model, provider, date, settings, briefing version, cost, time.
 - **One lab run at a time:** runs share the store and reset it.
 - **Each stage works before the next starts.**
+- In code, scenario files and messages to the user, give a decision's reason
+  in words; don't cite decision numbers ("D32"). Numbers live only in the log.
 - When a design decision is made, add it to `docs/decisions.md`. When a run
   reveals something, add it to `docs/findings.md`. When a stage or open item
   changes, update `docs/status.md`.

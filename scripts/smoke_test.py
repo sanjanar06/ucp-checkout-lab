@@ -42,7 +42,7 @@ PROVIDERS = {
     "gemini": {
         "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         "key_env": "GEMINI_API_KEY",
-        "default_model": "gemini-3.8-flash",
+        "default_model": "gemini-3.5-flash-lite",
     },
 }
 

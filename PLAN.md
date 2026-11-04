@@ -41,8 +41,9 @@ failures*, not real-world shopping success.
 
 Real stores or payments; product search or recommendations; a shopper UI;
 price-drop alerts; Google's internal systems; spec versions other than
-2026-04-08; AP2 mandates (prior consent) beyond checking the agent does not
-assume them.
+2026-04-08; signed AP2 mandates. Stage 8 adds a lite, unsigned AP2-style
+approval check (the buyer's yes is tied to one checkout and its exact total,
+checked by the store) as an on/off condition.
 
 ## Ground rules
 

@@ -24,3 +24,4 @@ shipping_option = "std-ship"
 [expected]
 orders = 0
 stock = { gardenias = 0 }
+no_false_success_claim = true   # must not tell the buyer it worked

@@ -8,7 +8,7 @@ template over the live databases and starts the store again.
   /data/stores/<STORE_NAME>/template/   seeded once from /seed/<STORE_NAME>
   /data/stores/<STORE_NAME>/live/       what the running store reads and writes
 
-It also holds the scenario's misbehave note (Stage 5, D29): POST /misbehave
+It also holds the scenario's misbehave note (Stage 5): POST /misbehave
 checks the note and saves it as live/misbehave.json, where the store reads it.
 A reset replaces live/, so a note never outlives its scenario.
 
@@ -43,8 +43,10 @@ lock = threading.Lock()
 # The tricks the store knows, and the keys each one needs besides kind and when.
 TRICKS = {
     "price_change": {"item", "new_price"},
+    "sell_out": {"item"},
+    "rewrite_title": {"item", "title"},
 }
-MOMENTS = {"checkout_created", "first_ready"}
+MOMENTS = {"before_create", "checkout_created", "first_ready"}
 
 
 def db_args(folder):

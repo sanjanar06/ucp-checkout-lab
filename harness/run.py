@@ -9,6 +9,7 @@ For every scenario file:
 Usage (from the repo root):
     docker compose run --rm lab                       # all dev scenarios
     docker compose run --rm lab --only 002            # scenarios whose id contains 002
+    docker compose run --rm lab --only 008,011        # ...or any of several
     docker compose run --rm lab --bug ignore_decline  # break the shopper on purpose
     docker compose run --rm lab --agent ai --provider gemini   # an AI shopper
     docker compose run --rm lab --agent ai --provider openrouter --model <id>
@@ -32,6 +33,7 @@ from agent import ai_shopper, llm, scripted_shopper
 from agent.buyer import Buyer
 from agent.ucp_client import UcpClient
 from grader.grade import grade
+from grader.judge import JudgeUnavailable
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("LAB_DATA_DIR", ROOT.parent / "lab-data"))
@@ -76,7 +78,8 @@ def run_scenario(path, args):
         misbehave_store(store, scenario["misbehave"])
 
     client = UcpClient(STORES[store]["url"])
-    buyer = Buyer(instruction["buyer_approves"], client.transcript)
+    buyer = Buyer(instruction["buyer_approves"], client.transcript,
+                  instruction.get("buyer_says_no_if_mentions", ()))
     start = time.monotonic()
     stats, error = {}, None
     try:
@@ -94,7 +97,11 @@ def run_scenario(path, args):
     if error:
         verdict, checks = "ERROR", []
     else:
-        verdict, checks = grade(scenario["expected"], store_db(store), client.transcript)
+        try:
+            verdict, checks = grade(scenario["expected"], store_db(store), client.transcript)
+        except JudgeUnavailable as e:
+            # The judge never answered: we can't grade, so ERROR, not FAIL.
+            verdict, checks, error = "ERROR", [], str(e)
     return scenario, {
         "verdict": verdict,
         "error": error,
@@ -109,7 +116,8 @@ def run_scenario(path, args):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--scenarios", default="scenarios/dev")
-    p.add_argument("--only", help="run only scenarios whose id contains this text")
+    p.add_argument("--only", help="run only scenarios whose id contains this text "
+                   "(comma-separated: any of them)")
     p.add_argument("--agent", choices=("scripted", "ai"), default="scripted")
     p.add_argument("--bug", choices=scripted_shopper.BUGS,
                    help="break the scripted shopper on purpose")
@@ -124,7 +132,8 @@ def main():
 
     paths = sorted((ROOT / args.scenarios).glob("*.toml"))
     if args.only:
-        paths = [x for x in paths if args.only in x.stem]
+        wanted = args.only.split(",")
+        paths = [x for x in paths if any(w in x.stem for w in wanted)]
     if not paths:
         sys.exit("no scenarios found")
 
@@ -140,35 +149,27 @@ def main():
         meta.update(provider=args.provider, model=args.model,
                     briefing_version=ai_shopper.BRIEFING_VERSION,
                     settings={"temperature": args.temperature,
-                              "max_model_calls": ai_shopper.MAX_MODEL_CALLS,
-                              "max_nudges": ai_shopper.MAX_NUDGES})
+                              "max_model_calls": ai_shopper.MAX_MODEL_CALLS})
     (out_dir / "run.json").write_text(json.dumps(meta, indent=2))
 
     who = f"{args.provider} {args.model}" if args.agent == "ai" else "scripted"
     print(f"Run {run_id}  (agent: {who}{', bug: ' + args.bug if args.bug else ''})\n")
     counts = {"PASS": 0, "FAIL": 0, "UNSAFE": 0, "ERROR": 0}
-    unassisted_passes = 0
     with open(out_dir / "results.jsonl", "w") as results:
         for path in paths:
             scenario, result = run_scenario(path, args)
             counts[result["verdict"]] += 1
-            # A pass only counts as unassisted if the AI needed no nudges (D23).
-            unassisted = not result["stats"].get("nudges")
-            if result["verdict"] == "PASS" and unassisted:
-                unassisted_passes += 1
             trace = {**meta, "scenario": scenario, **result}
             (out_dir / f"{scenario['id']}.json").write_text(json.dumps(trace, indent=2))
             summary = {**meta, "scenario_id": scenario["id"], "category": scenario["category"],
                        "kind": scenario["kind"], "verdict": result["verdict"],
-                       "unassisted": unassisted,
                        "latency_s": result["latency_s"], "error": result["error"],
                        "failed_checks": [c["check"] for c in result["checks"] if not c["ok"]],
                        **result["stats"]}
             results.write(json.dumps(summary) + "\n")
 
             st = result["stats"]
-            extra = (f"  ({st['model_calls']} model calls, {st.get('nudges', 0)} nudges,"
-                     f" {result['latency_s']:.0f}s)" if st else "")
+            extra = f"  ({st['model_calls']} model calls, {result['latency_s']:.0f}s)" if st else ""
             print(f"  {result['verdict']:<6}  {scenario['id']}{extra}", flush=True)
             if result["error"]:
                 print(f"          provider error: {result['error'][:150]}")
@@ -180,8 +181,7 @@ def main():
     print(f"\n{counts['PASS']} passed, {counts['FAIL']} failed, {counts['UNSAFE']} unsafe, "
           f"{counts['ERROR']} provider errors  ->  {out_dir.relative_to(DATA_DIR)}")
     if graded:
-        print(f"pass rate (unassisted): {unassisted_passes}/{graded}   "
-              f"pass rate (with nudges): {counts['PASS']}/{graded}")
+        print(f"pass rate: {counts['PASS']}/{graded}")
     sys.exit(0 if counts["PASS"] == len(paths) else 1)
 
 

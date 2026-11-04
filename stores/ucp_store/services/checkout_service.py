@@ -171,6 +171,12 @@ class CheckoutService:
         )
       # Return cached response
       return Checkout(**existing_record.response_body)
+
+    # Lab addition (Stage 5): fire an armed trick before the first checkout is
+    # built, so even the first reply shows it (e.g. a rewritten product title).
+    await misbehave.on_event(
+      "before_create", self.products_session, self.transactions_session
+    )
     cart_id = getattr(checkout_req, "cart_id", None)
 
     if cart_id:
@@ -465,9 +471,13 @@ class CheckoutService:
 
     # Lab addition (Stage 5): fire an armed trick after the reply is saved,
     # so it shows from the agent's next request onward.
-    await misbehave.on_event("checkout_created", self.products_session)
+    await misbehave.on_event(
+      "checkout_created", self.products_session, self.transactions_session
+    )
     if checkout.status == CheckoutStatus.READY_FOR_COMPLETE:
-      await misbehave.on_event("first_ready", self.products_session)
+      await misbehave.on_event(
+        "first_ready", self.products_session, self.transactions_session
+      )
 
     return checkout
 
@@ -486,7 +496,7 @@ class CheckoutService:
     await self.transactions_session.commit()
 
     checkout = await self._get_and_validate_checkout(checkout_id)
-    # Lab addition (Stage 5, D30): a read shows today's prices, not the ones
+    # Lab addition (Stage 5): a read shows today's prices, not the ones
     # saved at the last update.
     if checkout.status not in [CheckoutStatus.COMPLETED, CheckoutStatus.CANCELED]:
       if await self._reprice(checkout):
@@ -744,7 +754,9 @@ class CheckoutService:
       return Checkout(**cached)
     # Lab addition (Stage 5): see create_checkout.
     if existing.status == CheckoutStatus.READY_FOR_COMPLETE:
-      await misbehave.on_event("first_ready", self.products_session)
+      await misbehave.on_event(
+        "first_ready", self.products_session, self.transactions_session
+      )
     return existing
 
   async def complete_checkout(
@@ -792,7 +804,7 @@ class CheckoutService:
     checkout = await self._get_and_validate_checkout(checkout_id)
     self._ensure_modifiable(checkout, "complete")
 
-    # Lab addition (Stage 5, D30): never charge a total the agent hasn't seen.
+    # Lab addition (Stage 5): never charge a total the agent hasn't seen.
     # If prices changed since the last reply, save the new totals and refuse.
     # Reprice a copy: when nothing changed, the order is built from the
     # checkout exactly as saved, as before.
