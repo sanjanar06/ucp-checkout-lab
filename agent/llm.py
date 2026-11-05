@@ -25,7 +25,7 @@ PROVIDERS = {
     "openrouter": {
         "url": "https://openrouter.ai/api/v1/chat/completions",
         "key_env": "OPENROUTER_API_KEY",
-        "default_model": "nvidia/nemotron-3.5-super-vl:free",
+        "default_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
     },
     "gemini": {
         "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
@@ -42,7 +42,9 @@ class ProviderUnavailable(Exception):
 
 
 def chat(provider, model, messages, tools, temperature=0.0, max_retries=6):
-    """One model call. Returns (reply_json, meta) where meta has latency and waits."""
+    """One model call. Returns (reply_json, meta) where meta has latency and waits.
+
+    temperature=None leaves it out, so the provider uses the model's default."""
     cfg = PROVIDERS[provider]
     headers = {"Content-Type": "application/json"}
     if cfg["key_env"]:
@@ -50,7 +52,9 @@ def chat(provider, model, messages, tools, temperature=0.0, max_retries=6):
         if not key:
             raise SystemExit(f"Set {cfg['key_env']} in .env (see .env.example)")
         headers["Authorization"] = f"Bearer {key}"
-    body = {"model": model, "temperature": temperature, "messages": messages, "tools": tools}
+    body = {"model": model, "messages": messages, "tools": tools}
+    if temperature is not None:
+        body["temperature"] = temperature
     if provider == "openrouter":
         body["usage"] = {"include": True}
     data = json.dumps(body).encode()

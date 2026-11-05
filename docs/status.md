@@ -9,8 +9,8 @@ Last updated: 2026-11-05.
 | 3. Test lab without AI | ✅ 10 scenarios, grader proven with deliberate bugs |
 | 4. First AI run | ✅ Nemotron 5/7 graded, 0 unsafe; failures read (F1–F3). Reruns with briefing v2 done for all three models |
 | 5. Store problems | ✅ Price changes, sell-outs, trick text and escalation; 23 dev + 15 held-out scenarios, honest scripted shopper passes all, every check proven with a deliberate bug; conformance 76 passed, 1 skipped (after a reset) |
-| 6. Network and multi-store problems | Building: network proxy with lost replies (024, 025) done and proven. Duplicate delivery is a lab check (store passes). Two buyers, one unit (026) done with a real second order. Bakery and gift shop added (conformance passes on all three; 027, 028). Carts across stores built: 029 (all fine), 030 (one store fails at payment). AI runs done (F13). Stage 6 is complete pending your review |
-| 7. Trustworthy numbers | — |
+| 6. Network and multi-store problems | ✅ Network proxy (lost replies, duplicate-delivery check), two buyers one unit, bakery and gift shop (conformance on all three), carts across stores; scenarios 024–030; merged to main |
+| 7. Trustworthy numbers | Building: harness does trials, resume, cost cap; report script done. Models: Nemotron 3 Ultra (free), Gemini 3.8 Flash, Claude Haiku 5.5, GPT-6 Luna. Next: full runs (4 models × dev + held-out × 3) |
 | 8. Compare models, safety rules | — |
 | 9. Write up and share | — |
 
