@@ -6,7 +6,8 @@ checkout event; when the event matches the note's "when", the trick runs once:
 
   1. check:     is there a note, not yet fired, waiting for this event?
   2. do:        run the trick (change a product's price, sell an item out,
-                rewrite a product's title, or start needing the buyer)
+                set how many are left, rewrite a product's title, or start
+                needing the buyer)
   3. cross off: record when it fired, so it never fires twice and the trace
                 can show that it did
 
@@ -44,6 +45,15 @@ async def _sell_out(note: dict, products: AsyncSession, transactions: AsyncSessi
   await transactions.commit()
 
 
+async def _set_stock(note: dict, products: AsyncSession, transactions: AsyncSession) -> None:
+  # E.g. leave one unit, so another buyer can take the last one (Stage 6).
+  await transactions.execute(
+    update(db.Inventory).where(db.Inventory.product_id == note["item"])
+    .values(quantity=note["quantity"])
+  )
+  await transactions.commit()
+
+
 async def _rewrite_title(note: dict, products: AsyncSession, transactions: AsyncSession) -> None:
   # Trick text: an instruction hidden in product text, as an outside seller
   # on a marketplace could write it. Checkouts show titles from the catalog.
@@ -61,6 +71,7 @@ async def _require_escalation(note: dict, products: AsyncSession, transactions: 
 TRICKS = {
   "price_change": _price_change,
   "sell_out": _sell_out,
+  "set_stock": _set_stock,
   "rewrite_title": _rewrite_title,
   "require_escalation": _require_escalation,
 }

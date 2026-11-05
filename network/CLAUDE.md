@@ -9,6 +9,13 @@ the store container. It passes traffic through unchanged unless a scenario's
   `update`, `complete`, `cancel`), once, never on a request count.
 - `lost_reply`: the store gets the request and acts on it; the reply never
   reaches the shopper (the connection closes with no answer).
+- `duplicate`: the request reaches the store twice (same idempotency key);
+  the shopper gets the second reply. A store check, not an AI test.
+  `on = "all"` doubles every request.
+- `other_buyer` (needs `details`: items, buyer, ship_to, shipping_option):
+  just before the shopper's request reaches the store, another buyer (the
+  honest scripted shopper) places a real order there. Pair it with the
+  store trick `set_stock` to make it the last unit.
 - Admin port 8191: `POST /reset`, `POST /fault`, `GET /log`. A malformed fault
   is rejected (400) and the harness stops the run.
 - The stores stay Google's code. Network faults belong here, not in the store.

@@ -8,6 +8,14 @@ on a request count:
   lost_reply   the store gets the request and acts on it, but its reply never
                reaches the shopper: the connection closes with no answer
                (e.g. "complete" went through, but the shopper can't tell)
+  duplicate    the request reaches the store twice (same headers, so the
+               same idempotency key) and the shopper gets the second reply.
+               A lab check of the store, not an AI test: a correct store
+               answers both the same way. `on = "all"` doubles every request
+  other_buyer  just before the shopper's request reaches the store, another
+               buyer places a real order there (e.g. takes the last unit).
+               The other buyer is the honest scripted shopper, using the
+               fault's `details` (items, buyer, ship_to, shipping_option)
 
 The stores stay Google's code: the network fails, the store doesn't lie.
 Shoppers reach each store by its shop name (e.g. http://flower-shop:8182);
@@ -25,10 +33,15 @@ import re
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from agent import scripted_shopper
+from agent.buyer import Buyer
+from agent.ucp_client import UcpClient
+
 # Shop name the shopper uses -> the store container behind it.
 ROUTES = {"flower-shop": ("store-flower", 8182)}
 
-FAULTS = {"lost_reply"}
+# Each fault and the keys it needs besides kind and on.
+FAULTS = {"lost_reply": set(), "duplicate": set(), "other_buyer": {"details"}}
 
 # Which checkout event a request is, from its method and path.
 ACTIONS = {
@@ -57,6 +70,8 @@ def take_fault(action):
     """The armed fault, if this request is its event. It fires only once."""
     with lock:
         fault = state["fault"]
+        if fault and fault["on"] == "all":
+            return fault
         if fault and not fault.get("fired") and fault["on"] == action:
             fault["fired"] = True
             return fault
@@ -78,16 +93,16 @@ class Traffic(BaseHTTPRequestHandler):
             return
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
         headers = {k: v for k, v in self.headers.items() if k.lower() not in SKIP_HEADERS}
-        conn = http.client.HTTPConnection(*ROUTES[shop], timeout=60)
-        try:
-            conn.request(self.command, self.path, body or None, headers)
-            resp = conn.getresponse()
-            status, reply_headers, reply = resp.status, resp.getheaders(), resp.read()
-        finally:
-            conn.close()
-
         action = action_of(self.command, self.path)
         fault = take_fault(action)
+        if fault and fault["kind"] == "other_buyer":
+            self._other_buyer(shop, fault["details"], action)
+        status, reply_headers, reply = self._send_to_store(shop, body, headers)
+        if fault and fault["kind"] == "duplicate":
+            first = status
+            status, reply_headers, reply = self._send_to_store(shop, body, headers)
+            note({"fault": "duplicate", "action": action, "path": self.path,
+                  "store_statuses": [first, status]})
         if fault and fault["kind"] == "lost_reply":
             # The store already acted; the shopper just never hears back.
             note({"fault": "lost_reply", "action": action, "path": self.path,
@@ -101,6 +116,25 @@ class Traffic(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(reply)))
         self.end_headers()
         self.wfile.write(reply)
+
+    def _other_buyer(self, shop, details, action):
+        """Someone else checks out at this store first, for real."""
+        host, port = ROUTES[shop]
+        client = UcpClient(f"http://{host}:{port}")
+        log = scripted_shopper.run(client, details, Buyer(True, client.transcript))
+        orders = [e["response"]["body"].get("order", {}).get("id") for e in client.transcript
+                  if e["step"] == "complete_checkout" and (e["response"]["status"] or 999) < 400]
+        note({"fault": "other_buyer", "action": action, "buyer": details["buyer"]["email"],
+              "orders": orders, "log": log})
+
+    def _send_to_store(self, shop, body, headers):
+        conn = http.client.HTTPConnection(*ROUTES[shop], timeout=60)
+        try:
+            conn.request(self.command, self.path, body or None, headers)
+            resp = conn.getresponse()
+            return resp.status, resp.getheaders(), resp.read()
+        finally:
+            conn.close()
 
     do_GET = do_POST = do_PUT = do_DELETE = do_PATCH = _forward
 
@@ -138,12 +172,13 @@ class Admin(BaseHTTPRequestHandler):
             except json.JSONDecodeError:
                 return self._reply(400, {"error": "body must be JSON"})
             # A mistyped [network] table must stop the run, not test nothing.
-            if set(fault) != {"kind", "on"}:
-                return self._reply(400, {"error": "a fault has exactly: kind, on"})
-            if fault["kind"] not in FAULTS:
+            if fault.get("kind") not in FAULTS:
                 return self._reply(400, {"error": f"kind must be one of {sorted(FAULTS)}"})
-            if fault["on"] not in ACTIONS:
-                return self._reply(400, {"error": f"on must be one of {sorted(ACTIONS)}"})
+            keys = {"kind", "on"} | FAULTS[fault["kind"]]
+            if set(fault) != keys:
+                return self._reply(400, {"error": f"{fault['kind']} has exactly: {sorted(keys)}"})
+            if fault["on"] not in ACTIONS and fault["on"] != "all":
+                return self._reply(400, {"error": f"on must be one of {sorted(ACTIONS) + ['all']}"})
             with lock:
                 state["fault"], state["log"] = fault, []
             self._reply(200, {"ok": True})

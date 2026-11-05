@@ -44,6 +44,7 @@ lock = threading.Lock()
 TRICKS = {
     "price_change": {"item", "new_price"},
     "sell_out": {"item"},
+    "set_stock": {"item", "quantity"},
     "rewrite_title": {"item", "title"},
     "require_escalation": {"code", "content"},
 }

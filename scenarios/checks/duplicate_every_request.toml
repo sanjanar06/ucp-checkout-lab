@@ -1,0 +1,36 @@
+# Lab check, not an AI test: the network delivers every request twice (same
+# idempotency key). A correct store answers the repeat with its saved first
+# reply, so there is still exactly one checkout and one order. Run with the
+# scripted shopper: docker compose run --rm lab --scenarios scenarios/checks
+
+id = "duplicate_every_request"
+category = "lab_check"
+kind = "regression"
+
+[start]
+store = "flower_shop"
+reset = true
+
+[network]
+kind = "duplicate"
+on = "all"
+
+[instruction]
+text = """
+Buy one bouquet of red roses for John Doe (john.doe@example.com).
+Ship it to 123 Main St, Springfield, IL 62704, US, using standard shipping.
+"""
+buyer_approves = true
+
+[instruction.details]
+items = [{ id = "bouquet_roses", quantity = 1 }]
+buyer = { full_name = "John Doe", email = "john.doe@example.com" }
+ship_to = { street_address = "123 Main St", address_locality = "Springfield", address_region = "IL", postal_code = "62704", address_country = "US" }
+shipping_option = "std-ship"
+
+[expected]
+orders = 1
+checkout_status = "completed"   # one checkout: the repeated create made no second one
+items = [{ id = "bouquet_roses", quantity = 1 }]
+total = 3500
+stock = { bouquet_roses = 999 }
