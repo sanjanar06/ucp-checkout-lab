@@ -3,7 +3,7 @@
 Every shopper request goes through here. Normally it passes requests and
 replies through unchanged. A scenario's [network] table arms one fault,
 which fires on a checkout event (the first request of a given kind), never
-on a request count:
+on a request count. An optional `shop` limits it to one store's traffic:
 
   lost_reply   the store gets the request and acts on it, but its reply never
                reaches the shopper: the connection closes with no answer
@@ -70,13 +70,15 @@ def action_of(method, path):
                  if m == method and re.fullmatch(pattern, path)), None)
 
 
-def take_fault(action):
+def take_fault(action, shop):
     """The armed fault, if this request is its event. It fires only once."""
     with lock:
         fault = state["fault"]
-        if fault and fault["on"] == "all":
+        if not fault or fault.get("shop", shop) != shop:
+            return None
+        if fault["on"] == "all":
             return fault
-        if fault and not fault.get("fired") and fault["on"] == action:
+        if not fault.get("fired") and fault["on"] == action:
             fault["fired"] = True
             return fault
     return None
@@ -98,7 +100,7 @@ class Traffic(BaseHTTPRequestHandler):
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
         headers = {k: v for k, v in self.headers.items() if k.lower() not in SKIP_HEADERS}
         action = action_of(self.command, self.path)
-        fault = take_fault(action)
+        fault = take_fault(action, shop)
         if fault and fault["kind"] == "other_buyer":
             self._other_buyer(shop, fault["details"], action)
         status, reply_headers, reply = self._send_to_store(shop, body, headers)
@@ -179,8 +181,11 @@ class Admin(BaseHTTPRequestHandler):
             if fault.get("kind") not in FAULTS:
                 return self._reply(400, {"error": f"kind must be one of {sorted(FAULTS)}"})
             keys = {"kind", "on"} | FAULTS[fault["kind"]]
-            if set(fault) != keys:
-                return self._reply(400, {"error": f"{fault['kind']} has exactly: {sorted(keys)}"})
+            if set(fault) - {"shop"} != keys:
+                return self._reply(400, {"error": f"{fault['kind']} has exactly: {sorted(keys)}"
+                                                  " (plus optional shop)"})
+            if fault.get("shop", "flower-shop") not in ROUTES:
+                return self._reply(400, {"error": f"shop must be one of {sorted(ROUTES)}"})
             if fault["on"] not in ACTIONS and fault["on"] != "all":
                 return self._reply(400, {"error": f"on must be one of {sorted(ACTIONS) + ['all']}"})
             with lock:

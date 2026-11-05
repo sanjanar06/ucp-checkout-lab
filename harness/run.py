@@ -42,11 +42,14 @@ DATA_DIR = Path(os.environ.get("LAB_DATA_DIR", ROOT.parent / "lab-data"))
 # port is, and its live database.
 STORES = {
     "flower_shop": {
+        "shop": "flower-shop",
         "url": os.environ.get("FLOWER_URL", "http://flower-shop:8182"),
         "admin": os.environ.get("FLOWER_ADMIN_URL", "http://store-flower:8183"),
     },
-    "bakery": {"url": "http://bakery:8182", "admin": "http://store-bakery:8183"},
-    "gift_shop": {"url": "http://gift-shop:8182", "admin": "http://store-gifts:8183"},
+    "bakery": {"shop": "bakery", "url": "http://bakery:8182",
+               "admin": "http://store-bakery:8183"},
+    "gift_shop": {"shop": "gift-shop", "url": "http://gift-shop:8182",
+                  "admin": "http://store-gifts:8183"},
 }
 
 
@@ -88,29 +91,39 @@ def _network(path, note=None):
 
 def run_scenario(path, args):
     scenario = tomllib.loads(path.read_text())
-    store = scenario["start"]["store"]
+    # One store ([start] store) or a cart across several ([start] stores).
+    stores = scenario["start"].get("stores") or [scenario["start"]["store"]]
     instruction = scenario["instruction"]
     if scenario["start"].get("reset"):
-        reset_store(store)
+        for store in stores:
+            reset_store(store)
     if "misbehave" in scenario:
-        misbehave_store(store, scenario["misbehave"])
+        note = dict(scenario["misbehave"])
+        misbehave_store(note.pop("store", stores[0]), note)
     # Always start with a healthy network, so no fault leaks between scenarios.
     _network("/reset")
     if "network" in scenario:
         _network("/fault", scenario["network"])
 
-    client = UcpClient(STORES[store]["url"])
-    buyer = Buyer(instruction["buyer_approves"], client.transcript,
+    timeline = []
+    clients = {s: UcpClient(STORES[s]["url"], timeline, s) for s in stores}
+    buyer = Buyer(instruction["buyer_approves"], timeline,
                   instruction.get("buyer_says_no_if_mentions", ()))
+    details = instruction["details"]
     start = time.monotonic()
     stats, error = {}, None
     try:
-        if args.agent == "scripted":
-            shopper_log = scripted_shopper.run(client, instruction["details"], buyer, bug=args.bug)
+        if args.agent == "scripted" and len(stores) > 1:
+            shopper_log = scripted_shopper.run_multi(clients, details, buyer, bug=args.bug)
+        elif args.agent == "scripted":
+            shopper_log = scripted_shopper.run(clients[stores[0]], details, buyer, bug=args.bug)
         else:
+            # The AI knows stores by their shop names, as in their addresses.
+            items = [{**i, "store": STORES[i["store"]]["shop"]} if "store" in i else i
+                     for i in details["items"]]
             shopper_log, stats = ai_shopper.run(
-                client, buyer, instruction["text"], instruction["details"]["items"],
-                args.provider, args.model, args.temperature)
+                {STORES[s]["shop"]: c for s, c in clients.items()}, buyer,
+                instruction["text"], items, args.provider, args.model, args.temperature)
     except llm.ProviderUnavailable as e:
         # The provider never answered: not the AI's failure, so don't grade it.
         shopper_log, error = [], str(e)
@@ -121,7 +134,8 @@ def run_scenario(path, args):
         verdict, checks = "ERROR", []
     else:
         try:
-            verdict, checks = grade(scenario["expected"], store_db(store), client.transcript)
+            verdict, checks = grade(scenario["expected"],
+                                    {s: store_db(s) for s in stores}, timeline)
         except JudgeUnavailable as e:
             # The judge never answered: we can't grade, so ERROR, not FAIL.
             verdict, checks, error = "ERROR", [], str(e)
@@ -131,7 +145,7 @@ def run_scenario(path, args):
         "checks": checks,
         "shopper_log": shopper_log,
         "stats": stats,
-        "transcript": client.transcript,
+        "transcript": timeline,
         "network": network_log,
         "latency_s": round(elapsed, 3),
     }

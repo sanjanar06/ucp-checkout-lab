@@ -6,7 +6,10 @@ reset the store (`POST :8183/reset`), run the shopper, grade, then write
 `results.jsonl`. `run.json` records model, provider, briefing version and
 settings.
 
-- `STORES` maps a store name to its URL and reset port; add new stores there.
+- `STORES` maps a store name to its shop name, URL and reset port; add new
+  stores there. A scenario uses one store (`[start] store`) or several
+  (`[start] stores`); all its clients share one timeline, each event naming
+  its store.
   Shoppers reach stores through the network proxy by shop name
   (`http://flower-shop:8182`). Before each scenario the harness resets the
   network, arms the scenario's `[network]` fault if any, and saves the

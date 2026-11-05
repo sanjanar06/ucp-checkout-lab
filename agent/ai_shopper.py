@@ -13,6 +13,7 @@ The model never touches the store itself; it can only ask. Tools are thin
 wrappers over UCP: the model writes the real UCP request bodies (design A).
 """
 
+import copy
 import json
 import re
 
@@ -103,22 +104,52 @@ TOOLS = [
 ]
 
 
-def task_message(store_url, instruction_text, items):
+def tools_for(stores):
+    """The tools. A cart across several stores adds a "store" field to each
+    store tool, so the model says where each request goes. With one store the
+    tools are exactly as before."""
+    if len(stores) == 1:
+        return TOOLS
+    tools = copy.deepcopy(TOOLS)
+    for tool in tools:
+        f = tool["function"]
+        if f["name"] == "ask_buyer":
+            continue
+        f["parameters"]["properties"] = {
+            "store": {"type": "string", "enum": list(stores),
+                      "description": "Which store to send this to."},
+            **f["parameters"]["properties"]}
+        f["parameters"]["required"] = ["store", *f["parameters"]["required"]]
+    return tools
+
+
+def task_message(clients, instruction_text, items):
     # A saved cart shows each item's price when it was saved, if the scenario
     # gives one: without it the AI can't tell that a price changed.
-    cart = "\n".join(
-        f"  - item id {i['id']} x {i['quantity']}"
-        + (f" (${i['price'] / 100:.2f} each when saved)" if "price" in i else "")
-        for i in items)
-    return (f"{instruction_text.strip()}\n\nStore: {store_url}\n"
-            f"Saved cart:\n{cart}")
+    def line(i):
+        where = f"from {i['store']}: " if len(clients) > 1 else ""
+        return (f"  - {where}item id {i['id']} x {i['quantity']}"
+                + (f" (${i['price'] / 100:.2f} each when saved)" if "price" in i else ""))
+    cart = "\n".join(line(i) for i in items)
+    if len(clients) == 1:
+        (client,) = clients.values()
+        where = f"Store: {client.base_url}"
+    else:
+        where = "Stores:\n" + "\n".join(f"  - {name}: {c.base_url}" for name, c in clients.items())
+    return f"{instruction_text.strip()}\n\n{where}\nSaved cart:\n{cart}"
 
 
-def _run_tool(name, args, client, buyer):
+def _run_tool(name, args, clients, buyer):
     """Run one tool the model asked for. Returns what the model will read."""
     if name == "ask_buyer":
         approved = buyer.ask(args.get("message", ""))
         return {"answer": "Yes, go ahead." if approved else "No, don't buy it."}
+    if len(clients) == 1:
+        (client,) = clients.values()
+    elif args.get("store") in clients:
+        client = clients[args["store"]]
+    else:
+        return {"error": f"unknown store {args.get('store')!r}; stores: {sorted(clients)}"}
     if name == "get_store_info":
         status, body = client.discover()
     elif name == "create_checkout":
@@ -139,19 +170,22 @@ def _run_tool(name, args, client, buyer):
     return {"http_status": status, "body": body}
 
 
-def run(client, buyer, instruction_text, items, provider, model, temperature=0.0):
-    """Run one trial. Returns (log, stats); the log includes every model turn."""
+def run(clients, buyer, instruction_text, items, provider, model, temperature=0.0):
+    """Run one trial. `clients` maps each store's shop name to its client (all
+    sharing one timeline). Returns (log, stats); the log includes every model turn."""
     messages = [
         {"role": "system", "content": BRIEFING},
-        {"role": "user", "content": task_message(client.base_url, instruction_text, items)},
+        {"role": "user", "content": task_message(clients, instruction_text, items)},
     ]
+    tools = tools_for(clients)
+    timeline = buyer.timeline
     log = []
     stats = {"model_calls": 0, "tool_calls": 0, "prompt_tokens": 0, "completion_tokens": 0,
              "cost_usd": 0.0, "model_latency_s": 0.0, "provider_wait_s": 0.0,
              "provider_retries": 0, "served_model": None, "stopped": None}
 
     while stats["model_calls"] < MAX_MODEL_CALLS:
-        reply, meta = llm.chat(provider, model, messages, TOOLS, temperature)
+        reply, meta = llm.chat(provider, model, messages, tools, temperature)
         stats["model_calls"] += 1
         stats["model_latency_s"] = round(stats["model_latency_s"] + meta["latency_s"], 3)
         stats["provider_wait_s"] += meta["waited_s"]
@@ -176,7 +210,7 @@ def run(client, buyer, instruction_text, items, provider, model, temperature=0.0
             # grader can check them against the store's records.
             final = re.sub(r"<think>.*?</think>", "", message.get("content") or "",
                            flags=re.S).strip()
-            client.transcript.append({"step": "final_message", "message": final})
+            timeline.append({"step": "final_message", "message": final})
             return log, stats
 
         for call in calls:
@@ -184,7 +218,7 @@ def run(client, buyer, instruction_text, items, provider, model, temperature=0.0
             name = call["function"]["name"]
             try:
                 args = json.loads(call["function"].get("arguments") or "{}")
-                result = _run_tool(name, args, client, buyer)
+                result = _run_tool(name, args, clients, buyer)
             except (json.JSONDecodeError, KeyError, TypeError) as e:
                 result = {"error": f"bad tool arguments: {e}"}
             messages.append({"role": "tool", "tool_call_id": call.get("id", name),

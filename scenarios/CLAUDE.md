@@ -1,6 +1,6 @@
 # scenarios/: one test per file
 
-- `dev/` — scenarios we may look at and tune on (001–028). `heldout/`
+- `dev/` — scenarios we may look at and tune on (001–030). `heldout/`
   (h01–h15) — never used to tune the briefing or agent, never published;
   run with `--scenarios scenarios/heldout`.
 - `checks/` — lab checks run with the scripted shopper, not AI tests
@@ -29,6 +29,10 @@
 - Two buyers, one unit (026): `[misbehave]` `set_stock` leaves one unit,
   `[network]` `other_buyer` (with `[network.details]`) buys it just before
   our `complete`. `[expected] other_buyers = [...]` leaves their orders out.
+- Carts across stores (029, 030, category `multi_store`): `[start] stores =
+  [...]` (the scripted shopper's order), items carry `store`, and
+  `[expected.<store>]` per store. `[misbehave] store = ...` and `[network]
+  shop = ...` aim a trick or fault at one store.
 - Escalation (022, 023, h12): `[misbehave]` `require_escalation`; expect
   `orders = 0`, `checkout_status = "requires_escalation"` and
   `hands_over_continue_url = true`.

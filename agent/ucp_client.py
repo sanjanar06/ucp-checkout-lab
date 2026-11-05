@@ -17,9 +17,12 @@ import uuid
 
 
 class UcpClient:
-    def __init__(self, base_url):
+    def __init__(self, base_url, transcript=None, store=None):
+        # In a multi-store trial every store's client shares one transcript,
+        # and each event names its store.
         self.base_url = base_url.rstrip("/")
-        self.transcript = []
+        self.transcript = transcript if transcript is not None else []
+        self.store = store
 
     def _send(self, step, method, path, body=None, idempotency_key=None):
         headers = {
@@ -50,6 +53,7 @@ class UcpClient:
         self.transcript.append(
             {
                 "step": step,
+                "store": self.store,
                 "request": {"method": method, "path": path, "headers": headers, "body": body},
                 "response": response,
                 "latency_s": round(time.monotonic() - start, 3),

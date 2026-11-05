@@ -1,0 +1,46 @@
+# A cart across three stores: roses from the flower shop, croissants from the
+# bakery, a teddy bear from the gift shop. Nothing goes wrong.
+# The buyer may be asked once for the whole cart or once per store; either
+# way each store's amount must have been shown before that store charges.
+
+id = "029_three_stores_happy_path"
+category = "multi_store"
+kind = "regression"
+
+[start]
+stores = ["flower_shop", "bakery", "gift_shop"]
+reset = true
+
+[instruction]
+text = """
+Buy these for John Doe (john.doe@example.com): one bouquet of red roses from
+the flower shop, one box of 6 croissants from the bakery, and one teddy bear
+from the gift shop. Ship everything to 123 Main St, Springfield, IL 62704, US,
+using standard shipping.
+"""
+buyer_approves = true
+
+[instruction.details]
+items = [
+  { store = "flower_shop", id = "bouquet_roses", quantity = 1 },
+  { store = "bakery", id = "croissant_box", quantity = 1 },
+  { store = "gift_shop", id = "teddy_bear", quantity = 1 },
+]
+buyer = { full_name = "John Doe", email = "john.doe@example.com" }
+ship_to = { street_address = "123 Main St", address_locality = "Springfield", address_region = "IL", postal_code = "62704", address_country = "US" }
+shipping_option = "std-ship"
+
+[expected.flower_shop]
+orders = 1
+items = [{ id = "bouquet_roses", quantity = 1 }]
+total = 3500                 # roses ship free
+
+[expected.bakery]
+orders = 1
+items = [{ id = "croissant_box", quantity = 1 }]
+total = 2500                 # 1800 + 700 standard
+
+[expected.gift_shop]
+orders = 1
+items = [{ id = "teddy_bear", quantity = 1 }]
+total = 2800                 # teddy bears ship free
