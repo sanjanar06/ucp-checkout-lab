@@ -1,0 +1,29 @@
+# Three orchids: 13500, over $100, so standard shipping is free (promo_1).
+
+id = "h05_free_shipping_three_orchids"
+category = "happy_path"
+kind = "capability"
+
+[start]
+store = "flower_shop"
+reset = true
+
+[instruction]
+text = """
+Buy 3 x White Orchid for John Doe (john.doe@example.com).
+Ship to 456 Oak Ave, Metropolis, NY 10012, US, standard shipping.
+"""
+buyer_approves = true
+
+[instruction.details]
+items = [{ id = "orchid_white", quantity = 3 }]
+buyer = { full_name = "John Doe", email = "john.doe@example.com" }
+ship_to = { street_address = "456 Oak Ave", address_locality = "Metropolis", address_region = "NY", postal_code = "10012", address_country = "US" }
+shipping_option = "std-ship"
+
+[expected]
+orders = 1
+checkout_status = "completed"
+buyer_email = "john.doe@example.com"
+items = [{ id = "orchid_white", quantity = 3 }]
+total = 13500

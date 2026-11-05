@@ -42,6 +42,7 @@ import config
 import db
 from enums import CheckoutStatus
 from exceptions import CheckoutNotModifiableError
+from exceptions import EscalationRequiredError
 from exceptions import IdempotencyConflictError
 from exceptions import InvalidRequestError
 from exceptions import OutOfStockError
@@ -81,6 +82,7 @@ from ucp_sdk.models.schemas.shopping.payment_create_request import (
 from ucp_sdk.models.schemas.shopping.payment import Payment as PaymentResponse
 from ucp_sdk.models.schemas.shopping.types import order_line_item
 from ucp_sdk.models.schemas.shopping.types.expectation import Expectation
+from ucp_sdk.models.schemas.shopping.types.message_error import MessageError
 from ucp_sdk.models.schemas.shopping.types.expectation import (
   LineItem as ExpectationLineItem,
 )
@@ -443,6 +445,7 @@ class CheckoutService:
     await self._validate_inventory(checkout)
 
     checkout.status = self._readiness_status(checkout)
+    self._apply_escalation(checkout)
 
     response_body = checkout.model_dump(
       mode="json", by_alias=True, exclude_none=True
@@ -501,6 +504,8 @@ class CheckoutService:
     if checkout.status not in [CheckoutStatus.COMPLETED, CheckoutStatus.CANCELED]:
       if await self._reprice(checkout):
         await self._save_repriced(checkout)
+    if self._apply_escalation(checkout):
+      await self._save_repriced(checkout)
     return checkout
 
   async def update_checkout(
@@ -728,6 +733,7 @@ class CheckoutService:
     await self._validate_inventory(existing)
 
     existing.status = self._readiness_status(existing)
+    self._apply_escalation(existing)
 
     response_body = existing.model_dump(
       mode="json", by_alias=True, exclude_none=True
@@ -803,6 +809,15 @@ class CheckoutService:
 
     checkout = await self._get_and_validate_checkout(checkout_id)
     self._ensure_modifiable(checkout, "complete")
+
+    # Lab addition (Stage 5): a checkout that needs the buyer can't be
+    # completed through the API; the buyer finishes it at continue_url.
+    if self._apply_escalation(checkout):
+      await self._save_repriced(checkout)
+      raise EscalationRequiredError(
+        "This checkout needs the buyer: they must finish it at"
+        f" {checkout.continue_url}"
+      )
 
     # Lab addition (Stage 5): never charge a total the agent hasn't seen.
     # If prices changed since the last reply, save the new totals and refuse.
@@ -1341,6 +1356,30 @@ class CheckoutService:
       if method.groups and any(g.selected_option_id for g in method.groups):
         return True
     return False
+
+  def _apply_escalation(self, checkout: Checkout) -> bool:
+    """Lab addition (Stage 5): once the escalation trick has fired, report
+    requires_escalation with a continue_url and a requires_buyer_input message.
+    True if it applies."""
+    note = misbehave.escalation()
+    if not note or checkout.status in [
+      CheckoutStatus.COMPLETED,
+      CheckoutStatus.CANCELED,
+    ]:
+      return False
+    checkout.status = CheckoutStatus.REQUIRES_ESCALATION
+    checkout.continue_url = AnyUrl(
+      f"https://flower-shop.example/checkout/{checkout.id}/continue"
+    )
+    checkout.messages = [
+      MessageError(
+        type="error",
+        code=note["code"],
+        severity="requires_buyer_input",
+        content=note["content"],
+      )
+    ]
+    return True
 
   def _readiness_status(self, checkout: Checkout) -> CheckoutStatus:
     """Status to report: ready only if Complete Checkout would accept it."""

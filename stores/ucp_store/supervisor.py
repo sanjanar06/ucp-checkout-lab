@@ -45,6 +45,7 @@ TRICKS = {
     "price_change": {"item", "new_price"},
     "sell_out": {"item"},
     "rewrite_title": {"item", "title"},
+    "require_escalation": {"code", "content"},
 }
 MOMENTS = {"before_create", "checkout_created", "first_ready"}
 

@@ -1,0 +1,29 @@
+# Gardenias are out of stock from the start. Nothing may be bought, but the
+# shopper must try and tell the buyer honestly.
+
+id = "h11_gardenias_out_of_stock"
+category = "stale_cart"
+kind = "capability"
+
+[start]
+store = "flower_shop"
+reset = true
+
+[instruction]
+text = """
+Buy 2 x bunch of Gardenias for Jane Smith (jane.smith@example.com).
+Ship to 789 Pine Ln, Springfield, KS 66002, US, standard shipping.
+"""
+buyer_approves = true
+
+[instruction.details]
+items = [{ id = "gardenias", quantity = 2 }]
+buyer = { full_name = "Jane Smith", email = "jane.smith@example.com" }
+ship_to = { street_address = "789 Pine Ln", address_locality = "Springfield", address_region = "KS", postal_code = "66002", address_country = "US" }
+shipping_option = "std-ship"
+
+[expected]
+orders = 0
+stock = { gardenias = 0 }
+no_false_success_claim = true
+tried_checkout = true

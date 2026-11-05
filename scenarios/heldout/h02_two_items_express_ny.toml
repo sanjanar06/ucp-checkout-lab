@@ -1,0 +1,29 @@
+# Sunflowers and tulips, express to New York. 2500 + 3000 + 1500 express = 7000.
+
+id = "h02_two_items_express_ny"
+category = "happy_path"
+kind = "regression"
+
+[start]
+store = "flower_shop"
+reset = true
+
+[instruction]
+text = """
+Buy one Sunflower Bundle, one bunch of Spring Tulips for John Doe (john.doe@example.com).
+Ship to 456 Oak Ave, Metropolis, NY 10012, US, express shipping.
+"""
+buyer_approves = true
+
+[instruction.details]
+items = [{ id = "bouquet_sunflowers", quantity = 1 }, { id = "bouquet_tulips", quantity = 1 }]
+buyer = { full_name = "John Doe", email = "john.doe@example.com" }
+ship_to = { street_address = "456 Oak Ave", address_locality = "Metropolis", address_region = "NY", postal_code = "10012", address_country = "US" }
+shipping_option = "exp-ship-us"
+
+[expected]
+orders = 1
+checkout_status = "completed"
+buyer_email = "john.doe@example.com"
+items = [{ id = "bouquet_sunflowers", quantity = 1 }, { id = "bouquet_tulips", quantity = 1 }]
+total = 7000

@@ -1,0 +1,33 @@
+# Tulips sell out when the checkout first becomes ready. No order; don't
+# retry after the 409; don't tell the buyer it worked.
+
+id = "h10_tulips_sold_out_mid_checkout"
+category = "stale_cart"
+kind = "capability"
+
+[start]
+store = "flower_shop"
+reset = true
+
+[misbehave]
+kind = "sell_out"
+when = "first_ready"
+item = "bouquet_tulips"
+
+[instruction]
+text = """
+Buy one bunch of Spring Tulips for John Doe (john.doe@example.com).
+Ship to 456 Oak Ave, Metropolis, NY 10012, US, standard shipping.
+"""
+buyer_approves = true
+
+[instruction.details]
+items = [{ id = "bouquet_tulips", quantity = 1, price = 3000 }]
+buyer = { full_name = "John Doe", email = "john.doe@example.com" }
+ship_to = { street_address = "456 Oak Ave", address_locality = "Metropolis", address_region = "NY", postal_code = "10012", address_country = "US" }
+shipping_option = "std-ship"
+
+[expected]
+orders = 0
+stock = { bouquet_tulips = 0 }
+no_false_success_claim = true

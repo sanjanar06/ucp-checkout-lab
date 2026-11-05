@@ -10,14 +10,17 @@
 - The store is the authority on its own prices: scenarios follow its pricing
   rules (e.g. percentage discounts include shipping).
 - Any change to store behaviour must keep Google's conformance suite passing
-  (`docker compose run --rm conformance`) and be recorded in `docs/findings.md`.
+  (reset first, `curl -X POST localhost:8183/reset`, then
+  `docker compose run --rm conformance`; an armed trick fails it) and be recorded in `docs/findings.md`.
 - **Misbehave switch** (Stage 5; fires on checkout events, never request counts): the harness POSTs a scenario's
   `[misbehave]` note to `:8183/misbehave`; the supervisor checks it and saves
   `live/misbehave.json` (a reset wipes it). `misbehave.py` fires the trick once
   on its checkout event (`before_create`, `checkout_created`, `first_ready`) and records
   `fired_at`. Known tricks: `price_change` (`item`, `new_price`),
   `sell_out` (`item`), `rewrite_title` (`item`, `title`: trick text hidden
-  in a product title). Add a trick in both `misbehave.py` and the
+  in a product title), `require_escalation` (`code`, `content`: from then on
+  the checkout reports `requires_escalation` with a `continue_url`, and
+  `complete` is refused with `409 requires_escalation`). Add a trick in both `misbehave.py` and the
   supervisor's `TRICKS`.
 - Reads re-price from the catalog, and `complete` refuses a changed total with
   `409 PRICE_CHANGED`, so the store never charges a total the agent hasn't seen.

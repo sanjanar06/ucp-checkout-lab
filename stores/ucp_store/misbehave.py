@@ -6,7 +6,7 @@ checkout event; when the event matches the note's "when", the trick runs once:
 
   1. check:     is there a note, not yet fired, waiting for this event?
   2. do:        run the trick (change a product's price, sell an item out,
-                rewrite a product's title)
+                rewrite a product's title, or start needing the buyer)
   3. cross off: record when it fired, so it never fires twice and the trace
                 can show that it did
 
@@ -52,11 +52,29 @@ async def _rewrite_title(note: dict, products: AsyncSession, transactions: Async
   await products.commit()
 
 
+async def _require_escalation(note: dict, products: AsyncSession, transactions: AsyncSession) -> None:
+  # Nothing to change in the databases: once this note has fired, the
+  # checkout service reports requires_escalation (see escalation()).
+  pass
+
+
 TRICKS = {
   "price_change": _price_change,
   "sell_out": _sell_out,
   "rewrite_title": _rewrite_title,
+  "require_escalation": _require_escalation,
 }
+
+
+def escalation() -> dict | None:
+  """The fired require_escalation note, or None: does the checkout need the buyer?"""
+  path = _note_path()
+  if not path.exists():
+    return None
+  note = json.loads(path.read_text())
+  if note.get("kind") == "require_escalation" and note.get("fired_at"):
+    return note
+  return None
 
 
 async def on_event(

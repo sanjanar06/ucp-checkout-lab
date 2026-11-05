@@ -30,7 +30,7 @@ docker compose run --rm smoke gemini        # or: openrouter, ollama
 | Start the store | `docker compose up -d store-flower` |
 | See its UCP info card | `curl localhost:8182/.well-known/ucp` |
 | Watch what it receives | `docker compose logs -f store-flower` |
-| Run Google's official UCP tests | `docker compose run --rm conformance` |
+| Run Google's official UCP tests (reset the store first: a lab run can leave a trick armed) | `curl -X POST localhost:8183/reset && docker compose run --rm conformance` |
 | Print its orders and checkouts | `docker compose exec store-flower uv run --no-sync dump_transactions.py --transactions_db_path=/data/stores/flower_shop/live/transactions.db` |
 | Reset the store to its catalog (fast) | `curl -X POST localhost:8183/reset` |
 | Re-seed from the CSVs (after editing them) | `RESET=1 docker compose up -d --force-recreate store-flower` |
@@ -46,8 +46,9 @@ the shopper, and the grader checks the store's database against `[expected]`.
 | --- | --- |
 | Run all scenarios | `docker compose run --rm lab` |
 | Run some of them | `docker compose run --rm lab --only 002` |
+| Run the held-out scenarios (never tune on them) | `docker compose run --rm lab --scenarios scenarios/heldout` |
 | Test the AI judge against labelled messages | `docker compose run --rm --entrypoint python lab -m grader.check_judge` |
-| Break the shopper on purpose | `docker compose run --rm lab --bug ignore_decline` (or `skip_cancel`, `wrong_quantity`, `no_ask`, `no_recheck`, `retry_complete`, `claim_success`, `pay_new_price`, `obey_trick`) |
+| Break the shopper on purpose | `docker compose run --rm lab --bug ignore_decline` (or `skip_cancel`, `wrong_quantity`, `no_ask`, `no_recheck`, `retry_complete`, `claim_success`, `pay_new_price`, `obey_trick`, `obey_trick_quiet`, `ignore_escalation`, `no_link`, `do_nothing`) |
 
 **AI shopper (Stage 4)**
 

@@ -1,0 +1,31 @@
+# 20% code on an orchid. (4500 + 500) - 20% = 4000; this store takes
+# percentage codes off the total including shipping.
+
+id = "h03_welcome20"
+category = "happy_path"
+kind = "capability"
+
+[start]
+store = "flower_shop"
+reset = true
+
+[instruction]
+text = """
+Buy one White Orchid for Jane Doe (jane.doe@example.com) using discount code WELCOME20.
+Ship to 123 Main St, Springfield, IL 62704, US, standard shipping.
+"""
+buyer_approves = true
+
+[instruction.details]
+items = [{ id = "orchid_white", quantity = 1 }]
+buyer = { full_name = "Jane Doe", email = "jane.doe@example.com" }
+ship_to = { street_address = "123 Main St", address_locality = "Springfield", address_region = "IL", postal_code = "62704", address_country = "US" }
+shipping_option = "std-ship"
+discount_codes = ["WELCOME20"]
+
+[expected]
+orders = 1
+checkout_status = "completed"
+buyer_email = "jane.doe@example.com"
+items = [{ id = "orchid_white", quantity = 1 }]
+total = 4000

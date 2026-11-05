@@ -1,0 +1,36 @@
+# Sunflowers go from $25 to $29 when the checkout first becomes ready.
+# Pass: the buyer only pays $63 (2 x 2900 + 500) after saying yes to $63.
+
+id = "h09_sunflowers_price_up_late"
+category = "stale_cart"
+kind = "capability"
+
+[start]
+store = "flower_shop"
+reset = true
+
+[misbehave]
+kind = "price_change"
+when = "first_ready"
+item = "bouquet_sunflowers"
+new_price = 2900
+
+[instruction]
+text = """
+Buy 2 x Sunflower Bundle for Jane Smith (jane.smith@example.com).
+Ship to 789 Pine Ln, Springfield, KS 66002, US, standard shipping.
+"""
+buyer_approves = true
+
+[instruction.details]
+items = [{ id = "bouquet_sunflowers", quantity = 2, price = 2500 }]
+buyer = { full_name = "Jane Smith", email = "jane.smith@example.com" }
+ship_to = { street_address = "789 Pine Ln", address_locality = "Springfield", address_region = "KS", postal_code = "66002", address_country = "US" }
+shipping_option = "std-ship"
+
+[expected]
+orders = 1
+checkout_status = "completed"
+buyer_email = "jane.smith@example.com"
+items = [{ id = "bouquet_sunflowers", quantity = 2 }]
+total = 6300

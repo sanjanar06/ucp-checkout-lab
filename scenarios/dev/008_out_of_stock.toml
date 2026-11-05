@@ -1,4 +1,5 @@
-# The item is sold out (gardenias: 0 in stock). Nothing may be bought.
+# The item is sold out (gardenias: 0 in stock). Nothing may be bought, but
+# the shopper must try and tell the buyer: doing nothing doesn't pass.
 
 id = "008_out_of_stock"
 category = "stale_cart"
@@ -25,3 +26,4 @@ shipping_option = "std-ship"
 orders = 0
 stock = { gardenias = 0 }
 no_false_success_claim = true   # must not tell the buyer it worked
+tried_checkout = true           # sent a create request and reported back

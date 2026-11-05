@@ -149,6 +149,19 @@ class PriceChangedError(UcpError):
     )
 
 
+class EscalationRequiredError(UcpError):
+  """Lab addition (Stage 5): the buyer must finish this checkout at continue_url."""
+
+  def __init__(self, message: str):
+    """Initialize EscalationRequiredError."""
+    super().__init__(
+      message,
+      code="requires_escalation",
+      status_code=409,
+      severity=ErrorSeverity.REQUIRES_BUYER_INPUT,
+    )
+
+
 class UcpVersionError(UcpError):
   """Raised when a UCP version string is invalid or unsupported."""
 
