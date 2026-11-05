@@ -6,6 +6,7 @@ them, and records how long it waited. If they never clear, it raises
 ProviderUnavailable and the harness marks the trial ERROR (not a failure).
 """
 
+import http.client
 import json
 import os
 import random
@@ -72,7 +73,9 @@ def chat(provider, model, messages, tools, temperature=0.0, max_retries=6):
             if e.code not in RETRY_STATUSES:
                 raise RuntimeError(f"{provider} HTTP {e.code}: {detail}") from e
             last_error = f"HTTP {e.code}: {detail}"
-        except (urllib.error.URLError, TimeoutError) as e:
+        # A dropped connection (e.g. RemoteDisconnected) is a provider hiccup too.
+        except (urllib.error.URLError, TimeoutError, ConnectionError,
+                http.client.HTTPException) as e:
             last_error = f"connection: {e}"
         if retries >= max_retries:
             raise ProviderUnavailable(f"{provider} gave up after {retries} retries: {last_error}")
