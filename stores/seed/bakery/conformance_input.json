@@ -1,0 +1,26 @@
+{
+  "ucp_version": "2026-04-08",
+  "required_capabilities": [
+    "dev.ucp.shopping.checkout",
+    "dev.ucp.shopping.order",
+    "dev.ucp.shopping.discount",
+    "dev.ucp.shopping.fulfillment",
+    "dev.ucp.shopping.buyer_consent"
+  ],
+  "currency": "USD",
+  "items": [
+    {
+      "id": "birthday_cake",
+      "title": "Chocolate Birthday Cake",
+      "price": 4200
+    }
+  ],
+  "out_of_stock_item": {
+    "id": "panettone",
+    "title": "Panettone"
+  },
+  "non_existent_item": {
+    "id": "pink_wumpus",
+    "title": "Pink Wumpus"
+  }
+}

@@ -1,0 +1,4 @@
+id,country_code,service_level,price,title
+std-ship,default,standard,600,Standard Shipping
+exp-ship-us,US,express,1600,Express Shipping (US)
+exp-ship-intl,default,express,2800,International Express

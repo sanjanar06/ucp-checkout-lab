@@ -1,0 +1,4 @@
+code,type,value,description
+GIFT15,percentage,15,15% Off
+HOLIDAY25,percentage,25,25% Off
+FIXED1000,fixed_amount,1000,$10.00 Off

@@ -1,0 +1,4 @@
+code,type,value,description
+BREAD10,percentage,10,10% Off
+SWEET20,percentage,20,20% Off
+FIXED300,fixed_amount,300,$3.00 Off

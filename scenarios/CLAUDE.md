@@ -1,6 +1,6 @@
 # scenarios/: one test per file
 
-- `dev/` — scenarios we may look at and tune on (001–026). `heldout/`
+- `dev/` — scenarios we may look at and tune on (001–028). `heldout/`
   (h01–h15) — never used to tune the briefing or agent, never published;
   run with `--scenarios scenarios/heldout`.
 - `checks/` — lab checks run with the scripted shopper, not AI tests

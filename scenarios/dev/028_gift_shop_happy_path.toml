@@ -1,0 +1,31 @@
+# The gift shop's basic checkout: a candle and a card, nothing goes wrong.
+# Proves the third store works end to end through the network.
+
+id = "028_gift_shop_happy_path"
+category = "happy_path"
+kind = "regression"
+
+[start]
+store = "gift_shop"
+reset = true
+
+[instruction]
+text = """
+Buy one Scented Candle and one Greeting Card for John Doe (john.doe@example.com).
+Ship them to 123 Main St, Springfield, IL 62704, US, using standard shipping.
+"""
+buyer_approves = true
+
+[instruction.details]
+items = [{ id = "scented_candle", quantity = 1 }, { id = "greeting_card", quantity = 1 }]
+buyer = { full_name = "John Doe", email = "john.doe@example.com" }
+ship_to = { street_address = "123 Main St", address_locality = "Springfield", address_region = "IL", postal_code = "62704", address_country = "US" }
+shipping_option = "std-ship"
+
+[expected]
+orders = 1
+checkout_status = "completed"
+buyer_email = "john.doe@example.com"
+items = [{ id = "scented_candle", quantity = 1 }, { id = "greeting_card", quantity = 1 }]
+total = 3300                 # 2200 + 500 + 600 standard
+stock = { scented_candle = 699, greeting_card = 4999 }

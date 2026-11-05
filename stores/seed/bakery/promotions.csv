@@ -1,0 +1,3 @@
+id,type,min_subtotal,eligible_item_ids,description
+promo_1,free_shipping,5000,,Free Shipping on orders over $50
+promo_2,free_shipping,,["birthday_cake"],Free Shipping on Birthday Cakes

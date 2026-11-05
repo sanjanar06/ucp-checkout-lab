@@ -45,6 +45,8 @@ STORES = {
         "url": os.environ.get("FLOWER_URL", "http://flower-shop:8182"),
         "admin": os.environ.get("FLOWER_ADMIN_URL", "http://store-flower:8183"),
     },
+    "bakery": {"url": "http://bakery:8182", "admin": "http://store-bakery:8183"},
+    "gift_shop": {"url": "http://gift-shop:8182", "admin": "http://store-gifts:8183"},
 }
 
 

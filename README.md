@@ -30,7 +30,7 @@ docker compose run --rm smoke gemini        # or: openrouter, ollama
 | Start the store | `docker compose up -d store-flower` |
 | See its UCP info card | `curl localhost:8182/.well-known/ucp` |
 | Watch what it receives | `docker compose logs -f store-flower` |
-| Run Google's official UCP tests (reset the store first: a lab run can leave a trick armed) | `curl -X POST localhost:8183/reset && docker compose run --rm conformance` |
+| Run Google's official UCP tests (reset the store first: a lab run can leave a trick armed) | `curl -X POST localhost:8183/reset && docker compose run --rm conformance` (flower shop); bakery: reset `:8185`, `conformance-bakery`; gift shop: reset `:8187`, `conformance-gifts` |
 | Print its orders and checkouts | `docker compose exec store-flower uv run --no-sync dump_transactions.py --transactions_db_path=/data/stores/flower_shop/live/transactions.db` |
 | Reset the store to its catalog (fast) | `curl -X POST localhost:8183/reset` |
 | Re-seed from the CSVs (after editing them) | `RESET=1 docker compose up -d --force-recreate store-flower` |

@@ -3,6 +3,25 @@ x-sim-secret: &sim-secret
   # Dev-only value for the store's /testing endpoints; not a real secret.
   SIMULATION_SECRET: lab-sim-secret
 
+# Every store is Google's sample store with its own catalog (stores/seed/<name>).
+x-store: &store
+  build: stores/ucp_store
+  volumes:
+    - ../lab-data:/data
+    - ./stores/seed:/seed:ro
+
+# Google's official UCP tests. Each run shares one store's network so
+# "localhost" means the same place for both: the suite runs its own webhook
+# receiver and tells the store to call it there. The suite reads its test data
+# from test_data/flower_shop, so each store's seed folder is mounted there.
+x-conformance: &conformance
+  build:
+    context: tests
+    dockerfile: conformance.Dockerfile
+  environment:
+    <<: *sim-secret
+    SERVER_URL: http://localhost:8182
+
 services:
   smoke:
     build: .
@@ -36,6 +55,10 @@ services:
         condition: service_healthy
       store-flower:
         condition: service_healthy
+      store-bakery:
+        condition: service_healthy
+      store-gifts:
+        condition: service_healthy
 
   # The network between shoppers and stores: passes traffic through, or
   # fails on cue (network/proxy.py). Shoppers reach stores by shop name.
@@ -46,41 +69,74 @@ services:
       - .:/app:ro
     networks:
       default:
-        aliases: [flower-shop]
+        aliases: [flower-shop, bakery, gift-shop]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8191/health')"]
       interval: 2s
       timeout: 3s
       retries: 30
 
-  # Google's sample store, seeded with the flower_shop catalog.
+  # The stores. Inside each container the store is on 8182 and its admin
+  # (reset) port on 8183; the host ports are only for trying them by hand.
   store-flower:
-    build: stores/ucp_store
+    <<: *store
     environment:
       <<: *sim-secret
       STORE_NAME: flower_shop
       RESET: ${RESET:-0}
     ports:
-      - "127.0.0.1:8182:8182"   # the store
-      - "127.0.0.1:8183:8183"   # its reset port (POST /reset)
-    volumes:
-      - ../lab-data:/data
-      - ./stores/seed:/seed:ro
+      - "127.0.0.1:8182:8182"
+      - "127.0.0.1:8183:8183"
 
-  # Google's official UCP tests, run against the flower store.
-  conformance:
-    build:
-      context: tests
-      dockerfile: conformance.Dockerfile
+  store-bakery:
+    <<: *store
     environment:
       <<: *sim-secret
-      SERVER_URL: http://localhost:8182
+      STORE_NAME: bakery
+      RESET: ${RESET:-0}
+    ports:
+      - "127.0.0.1:8184:8182"
+      - "127.0.0.1:8185:8183"
+
+  store-gifts:
+    <<: *store
+    environment:
+      <<: *sim-secret
+      STORE_NAME: gift_shop
+      RESET: ${RESET:-0}
+    ports:
+      - "127.0.0.1:8186:8182"
+      - "127.0.0.1:8187:8183"
+
+  # Conformance, one service per store. Flower uses Google's own test data.
+  conformance:
+    <<: *conformance
     command: ["--junitxml=/data/conformance/flower_shop.xml"]
-    # Share the store's network so "localhost" means the same place for both:
-    # the suite runs its own webhook receiver and tells the store to call it there.
     network_mode: service:store-flower
     volumes:
       - ../lab-data:/data
     depends_on:
       store-flower:
+        condition: service_healthy
+
+  conformance-bakery:
+    <<: *conformance
+    command: ["--junitxml=/data/conformance/bakery.xml"]
+    network_mode: service:store-bakery
+    volumes:
+      - ../lab-data:/data
+      - ./stores/seed/bakery:/conformance/test_data/flower_shop:ro
+    depends_on:
+      store-bakery:
+        condition: service_healthy
+
+  conformance-gifts:
+    <<: *conformance
+    command: ["--junitxml=/data/conformance/gift_shop.xml"]
+    network_mode: service:store-gifts
+    volumes:
+      - ../lab-data:/data
+      - ./stores/seed/gift_shop:/conformance/test_data/flower_shop:ro
+    depends_on:
+      store-gifts:
         condition: service_healthy

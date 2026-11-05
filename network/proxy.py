@@ -38,7 +38,11 @@ from agent.buyer import Buyer
 from agent.ucp_client import UcpClient
 
 # Shop name the shopper uses -> the store container behind it.
-ROUTES = {"flower-shop": ("store-flower", 8182)}
+ROUTES = {
+    "flower-shop": ("store-flower", 8182),
+    "bakery": ("store-bakery", 8182),
+    "gift-shop": ("store-gifts", 8182),
+}
 
 # Each fault and the keys it needs besides kind and on.
 FAULTS = {"lost_reply": set(), "duplicate": set(), "other_buyer": {"details"}}

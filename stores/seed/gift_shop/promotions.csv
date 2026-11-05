@@ -1,0 +1,3 @@
+id,type,min_subtotal,eligible_item_ids,description
+promo_1,free_shipping,7500,,Free Shipping on orders over $75
+promo_2,free_shipping,,["teddy_bear"],Free Shipping on Teddy Bears

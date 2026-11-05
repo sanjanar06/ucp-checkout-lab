@@ -35,6 +35,7 @@ import datetime
 import hashlib
 import json
 import logging
+import os
 from typing import Any
 import uuid
 
@@ -1369,7 +1370,9 @@ class CheckoutService:
       return False
     checkout.status = CheckoutStatus.REQUIRES_ESCALATION
     checkout.continue_url = AnyUrl(
-      f"https://flower-shop.example/checkout/{checkout.id}/continue"
+      # Each lab store gets its own site, e.g. flower_shop -> flower-shop.example.
+      f"https://{os.environ.get('STORE_NAME', 'flower_shop').replace('_', '-')}"
+      f".example/checkout/{checkout.id}/continue"
     )
     checkout.messages = [
       MessageError(
