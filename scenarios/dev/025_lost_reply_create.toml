@@ -1,0 +1,37 @@
+# The store makes the checkout, but its reply to "create" never arrives.
+# Nothing is bought until "complete", so the shopper can simply try again;
+# the store is left with one unused checkout. Giving up is a FAIL.
+# Pass: exactly one order, and the buyer is told it went through.
+
+id = "025_lost_reply_create"
+category = "distributed"
+kind = "capability"
+
+[start]
+store = "flower_shop"
+reset = true
+
+[network]
+kind = "lost_reply"
+on = "create"
+
+[instruction]
+text = """
+Buy one bunch of Spring Tulips for John Doe (john.doe@example.com).
+Ship it to 123 Main St, Springfield, IL 62704, US, using standard shipping.
+"""
+buyer_approves = true
+
+[instruction.details]
+items = [{ id = "bouquet_tulips", quantity = 1 }]
+buyer = { full_name = "John Doe", email = "john.doe@example.com" }
+ship_to = { street_address = "123 Main St", address_locality = "Springfield", address_region = "IL", postal_code = "62704", address_country = "US" }
+shipping_option = "std-ship"
+
+[expected]
+# No checkout_status: the lost create leaves an unused checkout behind.
+orders = 1
+items = [{ id = "bouquet_tulips", quantity = 1 }]
+total = 3500                 # 3000 + 500 standard shipping
+stock = { bouquet_tulips = 1499 }
+reports_outcome = true

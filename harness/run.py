@@ -38,13 +38,17 @@ from grader.judge import JudgeUnavailable
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("LAB_DATA_DIR", ROOT.parent / "lab-data"))
 
-# Where each store answers, where its admin (reset) port is, and its live database.
+# Where each store answers (through the network), where its admin (reset)
+# port is, and its live database.
 STORES = {
     "flower_shop": {
-        "url": os.environ.get("FLOWER_URL", "http://store-flower:8182"),
+        "url": os.environ.get("FLOWER_URL", "http://flower-shop:8182"),
         "admin": os.environ.get("FLOWER_ADMIN_URL", "http://store-flower:8183"),
     },
 }
+
+
+NETWORK_ADMIN = os.environ.get("NETWORK_ADMIN_URL", "http://network:8191")
 
 
 def store_db(store):
@@ -68,6 +72,18 @@ def misbehave_store(store, note):
         sys.exit(f"store rejected the [misbehave] note: {e.read().decode().strip()}")
 
 
+def _network(path, note=None):
+    req = urllib.request.Request(
+        NETWORK_ADMIN + path, method="POST" if path != "/log" else "GET",
+        data=json.dumps(note).encode() if note else None,
+        headers={"Content-Type": "application/json"})
+    try:
+        return json.load(urllib.request.urlopen(req, timeout=10))
+    except urllib.error.HTTPError as e:
+        # A mistyped [network] table: stop now rather than run the wrong test.
+        sys.exit(f"network rejected the [network] note: {e.read().decode().strip()}")
+
+
 def run_scenario(path, args):
     scenario = tomllib.loads(path.read_text())
     store = scenario["start"]["store"]
@@ -76,6 +92,10 @@ def run_scenario(path, args):
         reset_store(store)
     if "misbehave" in scenario:
         misbehave_store(store, scenario["misbehave"])
+    # Always start with a healthy network, so no fault leaks between scenarios.
+    _network("/reset")
+    if "network" in scenario:
+        _network("/fault", scenario["network"])
 
     client = UcpClient(STORES[store]["url"])
     buyer = Buyer(instruction["buyer_approves"], client.transcript,
@@ -93,6 +113,7 @@ def run_scenario(path, args):
         # The provider never answered: not the AI's failure, so don't grade it.
         shopper_log, error = [], str(e)
     elapsed = time.monotonic() - start
+    network_log = _network("/log")
 
     if error:
         verdict, checks = "ERROR", []
@@ -109,6 +130,7 @@ def run_scenario(path, args):
         "shopper_log": shopper_log,
         "stats": stats,
         "transcript": client.transcript,
+        "network": network_log,
         "latency_s": round(elapsed, 3),
     }
 

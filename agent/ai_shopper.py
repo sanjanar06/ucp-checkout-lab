@@ -134,6 +134,8 @@ def _run_tool(name, args, client, buyer):
         status, body = client.cancel_checkout(args["checkout_id"])
     else:
         return {"error": f"unknown tool {name}"}
+    if status is None:
+        return {"error": client.transcript[-1]["response"]["error"]}
     return {"http_status": status, "body": body}
 
 

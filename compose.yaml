@@ -32,8 +32,26 @@ services:
       - .:/app:ro
       - ../lab-data:/data
     depends_on:
+      network:
+        condition: service_healthy
       store-flower:
         condition: service_healthy
+
+  # The network between shoppers and stores: passes traffic through, or
+  # fails on cue (network/proxy.py). Shoppers reach stores by shop name.
+  network:
+    build: .
+    entrypoint: ["python", "-m", "network.proxy"]
+    volumes:
+      - .:/app:ro
+    networks:
+      default:
+        aliases: [flower-shop]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8191/health')"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
 
   # Google's sample store, seeded with the flower_shop catalog.
   store-flower:

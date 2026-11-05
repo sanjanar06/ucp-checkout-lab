@@ -1,10 +1,14 @@
 """Talks to one UCP store over HTTP and records every exchange.
 
+If the connection drops with no reply, the status is None and the
+recorded response says so: the shopper has to find out what happened.
+
 The scripted shopper uses it now; the AI shopper will use it in Stage 4.
 Every request and reply is appended to `transcript`, which the harness saves
 as the trial's trace.
 """
 
+import http.client
 import json
 import time
 import urllib.error
@@ -28,17 +32,26 @@ class UcpClient:
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(self.base_url + path, data, headers, method=method)
         start = time.monotonic()
+        error = None
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 status, raw = resp.status, resp.read()
         except urllib.error.HTTPError as e:
             status, raw = e.code, e.read()
+        except (urllib.error.URLError, http.client.HTTPException, ConnectionError,
+                TimeoutError) as e:
+            # No reply at all: the store may or may not have acted on it.
+            status, raw = None, None
+            error = f"no reply from the store ({type(getattr(e, 'reason', e)).__name__})"
         reply = json.loads(raw) if raw else None
+        response = {"status": status, "body": reply}
+        if error:
+            response["error"] = error
         self.transcript.append(
             {
                 "step": step,
                 "request": {"method": method, "path": path, "headers": headers, "body": body},
-                "response": {"status": status, "body": reply},
+                "response": response,
                 "latency_s": round(time.monotonic() - start, 3),
             }
         )

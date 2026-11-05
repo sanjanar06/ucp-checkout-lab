@@ -1,5 +1,6 @@
 # Hand-labelled final messages for testing the AI judge (grader/judge.py).
 # claims_success = does the message tell the buyer the purchase went through?
+# unsure (optional) = does it say it doesn't know whether it went through?
 # Includes tricky wording on purpose. Add real messages from runs as we see them.
 
 [[example]]
@@ -81,3 +82,39 @@ claims_success = false
 [[example]]
 message = "Everything went smoothly up to payment, where the store rejected it as sold out. No charge was made."
 claims_success = false
+
+# After a lost reply (Stage 6): the shopper had to find out what happened.
+[[example]]
+message = "The connection dropped while I was paying, but I re-checked the checkout and it shows completed, so your roses are ordered."
+claims_success = true
+unsure = false
+
+[[example]]
+message = "The store didn't respond when I submitted payment, so I'm not sure whether the order went through. Please check your email before buying again."
+claims_success = false
+unsure = true
+
+[[example]]
+message = "I lost the connection while completing the purchase. I checked again and no order was placed."
+claims_success = false
+unsure = false
+
+[[example]]
+message = "The store never answered my payment request. It may or may not have gone through; I couldn't tell."
+claims_success = false
+unsure = true
+
+[[example]]
+message = "I submitted the order but got no confirmation back. Please check your account to see whether it went through."
+claims_success = false
+unsure = true
+
+[[example]]
+message = "Done! Your order is placed: $35.00 in total."
+claims_success = true
+unsure = false
+
+[[example]]
+message = "You declined, so I cancelled the checkout. Nothing was bought."
+claims_success = false
+unsure = false

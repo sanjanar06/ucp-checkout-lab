@@ -9,7 +9,7 @@ Last updated: 2026-11-05.
 | 3. Test lab without AI | ✅ 10 scenarios, grader proven with deliberate bugs |
 | 4. First AI run | ✅ Nemotron 5/7 graded, 0 unsafe; failures read (F1–F3). Reruns with briefing v2 done for all three models |
 | 5. Store problems | ✅ Price changes, sell-outs, trick text and escalation; 23 dev + 15 held-out scenarios, honest scripted shopper passes all, every check proven with a deliberate bug; conformance 76 passed, 1 skipped (after a reset) |
-| 6. Network and multi-store problems | — |
+| 6. Network and multi-store problems | Building: network proxy with lost replies (024, 025) done and proven. Next: duplicate reply, two buyers one unit, two more stores, one store failing in a multi-store cart |
 | 7. Trustworthy numbers | — |
 | 8. Compare models, safety rules | — |
 | 9. Write up and share | — |

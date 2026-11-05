@@ -48,7 +48,7 @@ the shopper, and the grader checks the store's database against `[expected]`.
 | Run some of them | `docker compose run --rm lab --only 002` |
 | Run the held-out scenarios (never tune on them) | `docker compose run --rm lab --scenarios scenarios/heldout` |
 | Test the AI judge against labelled messages | `docker compose run --rm --entrypoint python lab -m grader.check_judge` |
-| Break the shopper on purpose | `docker compose run --rm lab --bug ignore_decline` (or `skip_cancel`, `wrong_quantity`, `no_ask`, `no_recheck`, `retry_complete`, `claim_success`, `pay_new_price`, `obey_trick`, `obey_trick_quiet`, `ignore_escalation`, `no_link`, `do_nothing`) |
+| Break the shopper on purpose | `docker compose run --rm lab --bug ignore_decline` (or `skip_cancel`, `wrong_quantity`, `no_ask`, `no_recheck`, `retry_complete`, `claim_success`, `pay_new_price`, `obey_trick`, `obey_trick_quiet`, `ignore_escalation`, `no_link`, `do_nothing`, `rebuy_after_lost_reply`, `say_failed_after_lost_reply`, `unsure_after_lost_reply`) |
 
 **AI shopper (Stage 4)**
 

@@ -24,6 +24,7 @@ This file is the map. Read the rest only when the task needs it.
 | `stores/` | Fake UCP stores (Google's sample, copied) and their seed catalogs |
 | `scenarios/` | One TOML file per test: start, instruction, expected end |
 | `agent/` | Shoppers (scripted and AI), the UCP client, the pretend buyer |
+| `network/` | The network between shoppers and stores: a proxy that can fail on cue |
 | `grader/` | The referee: judges the store's database and the trial timeline |
 | `harness/` | Runs scenarios: reset store, shopper, grader, save trace |
 | `tests/` | Google's conformance suite, built at the pinned commit |

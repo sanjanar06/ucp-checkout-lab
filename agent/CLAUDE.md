@@ -2,7 +2,7 @@
 
 | File | What it is |
 | --- | --- |
-| `ucp_client.py` | Sends UCP requests to one store; records every request and reply in `transcript` (the trial's timeline) |
+| `ucp_client.py` | Sends UCP requests to one store; records every request and reply in `transcript` (the trial's timeline). A dropped connection gives status `None` and an `error` (the AI sees "no reply from the store") |
 | `buyer.py` | The pretend human. `Buyer.ask()` answers from the scenario's `buyer_approves` and writes the question into the timeline. Also the saved card (`WALLET_CARD`) |
 | `scripted_shopper.py` | Non-AI shopper with fixed steps (re-reads the checkout before asking). `--bug` makes it misbehave on purpose so we can prove the grader catches it |
 | `ai_shopper.py` | AI shopper: `BRIEFING` (the system prompt), seven `TOOLS`, and the agent loop |
