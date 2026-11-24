@@ -65,6 +65,16 @@ they never clear, the trial is marked ERROR rather than FAIL.
 | A specific model | `docker compose run --rm lab --agent ai --provider openrouter --model google/gemma-4-31b-it:free` |
 | One scenario | add `--only 002` |
 
+**Trustworthy numbers (Stage 7)**
+
+| What | Command |
+| --- | --- |
+| 3 trials per scenario at the model's own temperature | `docker compose run --rm lab --agent ai --provider openrouter --model anthropic/claude-haiku-5.5 --trials 3 --temperature default` (Stage 7 models: `nvidia/nemotron-3-ultra-550b-a55b:free`, `google/gemini-3.8-flash` with `--max-cost 4`, `anthropic/claude-haiku-5.5`, `openai/gpt-6-luna`) |
+| Held-out set | add `--scenarios scenarios/heldout` |
+| Spending cap per run (default $3) | add `--max-cost 2` |
+| Finish a run cut short (daily quota, cap, outage) | `docker compose run --rm lab --resume <run_id>` |
+| Report: pass@1, pass^3 with 95% ranges, UNSAFE, duplicates, cost, latency | `docker compose run --rm --entrypoint python lab scripts/report.py <run_id> [<run_id> ...]` |
+
 **Where things end up**
 
 | Output | Location |
@@ -72,6 +82,7 @@ they never clear, the trial is marked ERROR rather than FAIL.
 | Smoke test logs and traces | `../lab-data/runs/` |
 | Scenario runs (traces + `results.jsonl`) | `../lab-data/runs/<run_id>/` |
 | Store databases | `../lab-data/stores/flower_shop/live/` (`template/` is the clean copy) |
+| Stage 7 reports | `../lab-data/reports/` |
 | Official test reports | `../lab-data/conformance/` |
 
 `stores/ucp_store/` is Google's sample store, copied unchanged at a pinned

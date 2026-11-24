@@ -13,9 +13,17 @@ Usage (from the repo root):
     docker compose run --rm lab --bug ignore_decline  # break the shopper on purpose
     docker compose run --rm lab --agent ai --provider gemini   # an AI shopper
     docker compose run --rm lab --agent ai --provider openrouter --model <id>
+    docker compose run --rm lab --agent ai --trials 3 --temperature default
+    docker compose run --rm lab --resume <run_id>     # finish a run another day
+
+Repeated trials go scenario by scenario within a trial (all of trial 1, then
+trial 2, ...), so a run cut short by a daily quota still covers every
+scenario once. After several provider errors in a row the run stops; resume
+it later: it skips trials already graded and retries the ERRORs.
 
 Outputs go to $LAB_DATA_DIR/runs/<run_id>/: one <scenario>.json trace each
-and results.jsonl with one summary line per scenario.
+(<scenario>.t<n>.json with --trials > 1) and results.jsonl with one summary
+line per trial (on resume, a trial's last line counts).
 """
 
 import argparse
@@ -151,6 +159,22 @@ def run_scenario(path, args):
     }
 
 
+# Stop a run after this many provider errors in a row: the quota is probably
+# used up for the day, and every further trial would just wait and fail.
+MAX_ERRORS_IN_A_ROW = 3
+
+
+def _temperature(value):
+    return None if value == "default" else float(value)
+
+
+def _duplicate_order(checks):
+    """Did any store end up with more orders than expected (paid twice)?"""
+    return any(c["check"].split(":")[-1] == "orders" and not c["ok"]
+               and isinstance(c["actual"], int) and c["actual"] > c["expected"]
+               for c in checks)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--scenarios", default="scenarios/dev")
@@ -161,8 +185,29 @@ def main():
                    help="break the scripted shopper on purpose")
     p.add_argument("--provider", choices=llm.PROVIDERS, default="gemini")
     p.add_argument("--model", help="model id (default: the provider's default)")
-    p.add_argument("--temperature", type=float, default=0.0)
+    p.add_argument("--temperature", type=_temperature, default=0.0,
+                   help='a number, or "default" for the model\'s own')
+    p.add_argument("--trials", type=int, default=1, help="run each scenario this many times")
+    p.add_argument("--max-cost", type=float, default=3.0,
+                   help="stop the run once its model calls cost this many US dollars")
+    p.add_argument("--resume", metavar="RUN_ID",
+                   help="finish an earlier run with its own settings")
     args = p.parse_args()
+    done, spent = set(), 0.0
+    if args.resume:
+        out_dir = DATA_DIR / "runs" / args.resume
+        meta = json.loads((out_dir / "run.json").read_text())
+        for key in ("agent", "bug", "provider", "model", "scenarios", "only", "trials"):
+            setattr(args, key, meta.get(key))
+        args.temperature = (meta.get("settings") or {}).get("temperature", 0.0)
+        for line in (out_dir / "results.jsonl").read_text().splitlines():
+            r = json.loads(line)
+            spent += r.get("cost_usd") or 0.0
+            key = (r["scenario_id"], r.get("trial", 1))
+            if r["verdict"] == "ERROR":
+                done.discard(key)
+            else:
+                done.add(key)
     if args.agent == "ai":
         if args.bug:
             sys.exit("--bug only applies to the scripted shopper")
@@ -175,52 +220,84 @@ def main():
     if not paths:
         sys.exit("no scenarios found")
 
-    started = datetime.now(timezone.utc)
-    label = args.model.replace("/", "_").replace(":", "_") if args.agent == "ai" else "scripted"
-    run_id = started.strftime("%Y%m%dT%H%M%SZ") + "_" + label + ("_bug-" + args.bug if args.bug else "")
-    out_dir = DATA_DIR / "runs" / run_id
-    out_dir.mkdir(parents=True)
-    spec = tomllib.loads((ROOT / "versions.lock.toml").read_text())["spec"]["ucp_version"]
-    meta = {"run_id": run_id, "agent": args.agent, "bug": args.bug, "ucp_version": spec,
-            "started_at": started.isoformat()}
-    if args.agent == "ai":
-        meta.update(provider=args.provider, model=args.model,
-                    briefing_version=ai_shopper.BRIEFING_VERSION,
-                    settings={"temperature": args.temperature,
-                              "max_model_calls": ai_shopper.MAX_MODEL_CALLS})
+    if args.resume:
+        run_id = args.resume
+        meta.setdefault("resumed_at", []).append(datetime.now(timezone.utc).isoformat())
+    else:
+        started = datetime.now(timezone.utc)
+        label = args.model.replace("/", "_").replace(":", "_") if args.agent == "ai" else "scripted"
+        run_id = (started.strftime("%Y%m%dT%H%M%SZ") + "_" + label
+                  + ("_bug-" + args.bug if args.bug else ""))
+        out_dir = DATA_DIR / "runs" / run_id
+        out_dir.mkdir(parents=True)
+        spec = tomllib.loads((ROOT / "versions.lock.toml").read_text())["spec"]["ucp_version"]
+        meta = {"run_id": run_id, "agent": args.agent, "bug": args.bug, "ucp_version": spec,
+                "started_at": started.isoformat(), "scenarios": args.scenarios,
+                "only": args.only, "trials": args.trials}
+        if args.agent == "ai":
+            meta.update(provider=args.provider, model=args.model,
+                        briefing_version=ai_shopper.BRIEFING_VERSION,
+                        settings={"temperature": args.temperature,
+                                  "max_model_calls": ai_shopper.MAX_MODEL_CALLS})
     (out_dir / "run.json").write_text(json.dumps(meta, indent=2))
+    # The trace and summary carry the run's settings, not resume bookkeeping.
+    meta = {k: v for k, v in meta.items() if k != "resumed_at"}
 
     who = f"{args.provider} {args.model}" if args.agent == "ai" else "scripted"
-    print(f"Run {run_id}  (agent: {who}{', bug: ' + args.bug if args.bug else ''})\n")
+    print(f"Run {run_id}  (agent: {who}{', bug: ' + args.bug if args.bug else ''})"
+          f"{'  resuming: ' + str(len(done)) + ' trials already graded' if args.resume else ''}\n")
     counts = {"PASS": 0, "FAIL": 0, "UNSAFE": 0, "ERROR": 0}
-    with open(out_dir / "results.jsonl", "w") as results:
-        for path in paths:
+    trials = args.trials or 1
+    errors_in_a_row, stopped = 0, False
+    todo = [(t, path) for t in range(1, trials + 1) for path in paths
+            if (path.stem, t) not in done]
+    with open(out_dir / "results.jsonl", "a" if args.resume else "w") as results:
+        for trial, path in todo:
             scenario, result = run_scenario(path, args)
             counts[result["verdict"]] += 1
-            trace = {**meta, "scenario": scenario, **result}
-            (out_dir / f"{scenario['id']}.json").write_text(json.dumps(trace, indent=2))
-            summary = {**meta, "scenario_id": scenario["id"], "category": scenario["category"],
+            trace = {**meta, "trial": trial, "scenario": scenario, **result}
+            name = scenario["id"] + (f".t{trial}" if trials > 1 else "")
+            (out_dir / f"{name}.json").write_text(json.dumps(trace, indent=2))
+            summary = {**meta, "scenario_id": scenario["id"], "trial": trial,
+                       "category": scenario["category"],
                        "kind": scenario["kind"], "verdict": result["verdict"],
                        "latency_s": result["latency_s"], "error": result["error"],
                        "failed_checks": [c["check"] for c in result["checks"] if not c["ok"]],
+                       "duplicate_order": _duplicate_order(result["checks"]),
                        **result["stats"]}
             results.write(json.dumps(summary) + "\n")
+            results.flush()
 
             st = result["stats"]
             extra = f"  ({st['model_calls']} model calls, {result['latency_s']:.0f}s)" if st else ""
-            print(f"  {result['verdict']:<6}  {scenario['id']}{extra}", flush=True)
+            label = f"{scenario['id']}" + (f"  trial {trial}" if trials > 1 else "")
+            print(f"  {result['verdict']:<6}  {label}{extra}", flush=True)
             if result["error"]:
                 print(f"          provider error: {result['error'][:150]}")
             for c in result["checks"]:
                 if not c["ok"]:
                     print(f"          {c['check']}: expected {c['expected']}, got {c['actual']}")
+            spent += (st.get("cost_usd") or 0.0) if st else 0.0
+            if spent >= args.max_cost:
+                stopped = True
+                print(f"\nSpent ${spent:.2f}, the cap is ${args.max_cost:.2f}: stopping. "
+                      f"Resume with a higher --max-cost if that's intended.")
+                break
+            errors_in_a_row = errors_in_a_row + 1 if result["verdict"] == "ERROR" else 0
+            if errors_in_a_row >= MAX_ERRORS_IN_A_ROW:
+                stopped = True
+                print(f"\n{MAX_ERRORS_IN_A_ROW} provider errors in a row: stopping. "
+                      f"Resume later: docker compose run --rm lab --resume {run_id}")
+                break
 
-    graded = len(paths) - counts["ERROR"]
+    if spent:
+        print(f"\nmodel cost so far: ${spent:.4f}")
+    graded = sum(counts.values()) - counts["ERROR"]
     print(f"\n{counts['PASS']} passed, {counts['FAIL']} failed, {counts['UNSAFE']} unsafe, "
           f"{counts['ERROR']} provider errors  ->  {out_dir.relative_to(DATA_DIR)}")
     if graded:
         print(f"pass rate: {counts['PASS']}/{graded}")
-    sys.exit(0 if counts["PASS"] == len(paths) else 1)
+    sys.exit(0 if not stopped and counts["PASS"] == len(todo) else 1)
 
 
 if __name__ == "__main__":
