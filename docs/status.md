@@ -11,7 +11,7 @@ Last updated: 2026-11-23.
 | 5. Store problems | ✅ Price changes, sell-outs, trick text and escalation; 23 dev + 15 held-out scenarios, honest scripted shopper passes all, every check proven with a deliberate bug; conformance 76 passed, 1 skipped (after a reset) |
 | 6. Network and multi-store problems | ✅ Network proxy (lost replies, duplicate-delivery check), two buyers one unit, bakery and gift shop (conformance on all three), carts across stores; scenarios 024–030; merged to main |
 | 7. Trustworthy numbers | Runs done: 4 models × 45 scenarios × 3 trials, trick text rerun with the fixed buyer (F14). Gemini 3.8 Flash 96%/93% (dev/held-out), Haiku 5.5 94%/98%, Luna 86%/96%, Nemotron 3 Ultra 80%/91%. Open: how to score sending all completes at once in 030 |
-| 8. Compare models, safety rules | — |
+| 8. Compare models, safety rules | Building: approval check in the buyer's wallet done and proved; runs with it on next |
 | 9. Write up and share | — |
 
 ## Open items
@@ -41,9 +41,9 @@ Last updated: 2026-11-23.
      (done for every check so far).
   6. ~~Smarter pretend buyer for 014, 016, 017, 018, 021 (D41)~~ (done; reruns
      in F9).
-- Stage 8 (planned, not built): lite AP2-style approval check as an on/off
-  condition. Buyer's yes records checkout id and exact total; store refuses
-  `complete` if the total differs. Rerun 011 with it on to confirm F6 is caught.
+- Stage 8: approval check built in the buyer's wallet (D56), proved with the
+  scripted shopper. Next: Haiku, Luna and Nemotron Ultra with it on (45 × 3),
+  then compare with Stage 7.
 - Watch upstream issue [conformance#114](https://github.com/Universal-Commerce-Protocol/conformance/issues/114)
   (AP2 test passes with a fake mandate; our store passes it with no checks).
   Fix in progress by the issue's author: conformance#115 (reviewed positively 2026-10-30).

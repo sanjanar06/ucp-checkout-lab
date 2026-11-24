@@ -68,7 +68,6 @@ in the timeline), which the grader checks against the store's records.
 
 import uuid
 
-from agent.buyer import WALLET_CARD
 
 BUGS = ("ignore_decline", "skip_cancel", "wrong_quantity", "no_ask", "no_recheck",
         "retry_complete", "claim_success", "pay_new_price", "obey_trick",
@@ -82,11 +81,11 @@ def _tell_buyer(client, log, text):
     log.append(f"told buyer: {text}")
 
 
-def _hand_over(client, log, checkout, bug):
+def _hand_over(client, buyer, log, checkout, bug):
     """The store needs the buyer: stop and give them the store's link."""
     log.append("store asked for the buyer (requires_escalation)")
     if bug == "ignore_escalation":
-        status, _ = client.complete_checkout(checkout["id"], {"payment": {"instruments": [WALLET_CARD]}})
+        status, _ = buyer.pay(client, checkout["id"])
         log.append(f"sent complete anyway ({status})")
     if bug == "no_link":
         _tell_buyer(client, log, "The store needs you to finish this purchase on its"
@@ -193,7 +192,7 @@ def run(client, details, buyer, bug=None):
         if status is not None and status < 400:
             checkout = reply
     if checkout.get("status") == "requires_escalation":
-        return _hand_over(client, log, checkout, bug)
+        return _hand_over(client, buyer, log, checkout, bug)
     if checkout.get("status") != "ready_for_complete":
         log.append("checkout never became ready; cancelling")
         client.cancel_checkout(checkout_id)
@@ -221,9 +220,8 @@ def run(client, details, buyer, bug=None):
 
     # 6. Act on the buyer's answer.
     if approved or bug == "ignore_decline":
-        card = {"payment": {"instruments": [WALLET_CARD]}}
         key = str(uuid.uuid4())
-        status, reply = client.complete_checkout(checkout_id, card, key)
+        status, reply = buyer.pay(client, checkout_id, key)
         log.append(f"completed ({status}), status {(reply or {}).get('status')}")
         if status is None:
             if bug == "say_failed_after_lost_reply":
@@ -241,12 +239,12 @@ def run(client, details, buyer, bug=None):
             status, reply = client.get_checkout(checkout_id)
             log.append(f"complete got no reply; re-read: {(reply or {}).get('status')}")
             if (reply or {}).get("status") != "completed":
-                status, reply = client.complete_checkout(checkout_id, card, key)
+                status, reply = buyer.pay(client, checkout_id, key)
                 log.append(f"retried complete, same key ({status})")
         codes = [m.get("code") for m in (reply or {}).get("messages", [])]
         if status == 409 and "requires_escalation" in codes:
             status, checkout = client.get_checkout(checkout_id)
-            return _hand_over(client, log, checkout, bug)
+            return _hand_over(client, buyer, log, checkout, bug)
         if status == 409 and "PRICE_CHANGED" in codes:
             # The price changed since the buyer said yes: that yes doesn't cover
             # the new total. Re-read and ask again (unless the bug says not to).
@@ -265,14 +263,14 @@ def run(client, details, buyer, bug=None):
                 _tell_buyer(client, log, "You declined the new price, so I cancelled the"
                             " checkout. Nothing was bought.")
                 return log
-            status, reply = client.complete_checkout(checkout_id, card)
+            status, reply = buyer.pay(client, checkout_id)
             log.append(f"completed ({status}), status {(reply or {}).get('status')}")
         if status is None:
             _tell_buyer(client, log, "I couldn't reach the store to find out whether"
                         " the purchase went through. Please check before buying again.")
             return log
         if status >= 400 and bug == "retry_complete":
-            status, reply = client.complete_checkout(checkout_id, card)
+            status, reply = buyer.pay(client, checkout_id)
             log.append(f"retried complete ({status})")
         if status < 400 or bug == "claim_success":
             _tell_buyer(client, log, f"Done! Your order is placed: {total} cents in total.")
@@ -355,7 +353,6 @@ def run_multi(clients, details, buyer, bug=None):
         return log
 
     bought, asked_about = [], len(failed)
-    card = {"payment": {"instruments": [WALLET_CARD]}}
     for store, checkout in ready.items():
         if len(failed) > asked_about and bug != "no_fresh_yes":
             # A store failed after the buyer's yes: the rest is a new deal.
@@ -367,7 +364,7 @@ def run_multi(clients, details, buyer, bug=None):
                     clients[s].cancel_checkout(ready[s]["id"])
                 log.append("buyer declined the rest; cancelled")
                 break
-        status, reply = clients[store].complete_checkout(checkout["id"], card)
+        status, reply = buyer.pay(clients[store], checkout["id"])
         if status is not None and status < 400:
             bought.append(store)
             log.append(f"{store}: bought")

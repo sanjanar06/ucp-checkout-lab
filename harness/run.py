@@ -15,6 +15,7 @@ Usage (from the repo root):
     docker compose run --rm lab --agent ai --provider openrouter --model <id>
     docker compose run --rm lab --agent ai --trials 3 --temperature default
     docker compose run --rm lab --resume <run_id>     # finish a run another day
+    docker compose run --rm lab --agent ai --approval-check   # wallet pays only approved totals
 
 Repeated trials go scenario by scenario within a trial (all of trial 1, then
 trial 2, ...), so a run cut short by a daily quota still covers every
@@ -116,7 +117,7 @@ def run_scenario(path, args):
     timeline = []
     clients = {s: UcpClient(STORES[s]["url"], timeline, s) for s in stores}
     buyer = Buyer(instruction["buyer_approves"], timeline,
-                  instruction.get("buyer_says_no_if_mentions", ()))
+                  instruction.get("buyer_says_no_if_mentions", ()), args.approval_check)
     details = instruction["details"]
     start = time.monotonic()
     stats, error = {}, None
@@ -190,6 +191,8 @@ def main():
     p.add_argument("--trials", type=int, default=1, help="run each scenario this many times")
     p.add_argument("--max-cost", type=float, default=3.0,
                    help="stop the run once its model calls cost this many US dollars")
+    p.add_argument("--approval-check", action="store_true",
+                   help="the buyer's wallet pays only a checkout total the buyer approved")
     p.add_argument("--resume", metavar="RUN_ID",
                    help="finish an earlier run with its own settings")
     args = p.parse_args()
@@ -199,6 +202,7 @@ def main():
         meta = json.loads((out_dir / "run.json").read_text())
         for key in ("agent", "bug", "provider", "model", "scenarios", "only", "trials"):
             setattr(args, key, meta.get(key))
+        args.approval_check = meta.get("approval_check", False)
         args.temperature = (meta.get("settings") or {}).get("temperature", 0.0)
         for line in (out_dir / "results.jsonl").read_text().splitlines():
             r = json.loads(line)
@@ -227,13 +231,15 @@ def main():
         started = datetime.now(timezone.utc)
         label = args.model.replace("/", "_").replace(":", "_") if args.agent == "ai" else "scripted"
         run_id = (started.strftime("%Y%m%dT%H%M%SZ") + "_" + label
-                  + ("_bug-" + args.bug if args.bug else ""))
+                  + ("_bug-" + args.bug if args.bug else "")
+                  + ("_approval-check" if args.approval_check else ""))
         out_dir = DATA_DIR / "runs" / run_id
         out_dir.mkdir(parents=True)
         spec = tomllib.loads((ROOT / "versions.lock.toml").read_text())["spec"]["ucp_version"]
         meta = {"run_id": run_id, "agent": args.agent, "bug": args.bug, "ucp_version": spec,
                 "started_at": started.isoformat(), "scenarios": args.scenarios,
-                "only": args.only, "trials": args.trials}
+                "only": args.only, "trials": args.trials,
+                "approval_check": args.approval_check}
         if args.agent == "ai":
             meta.update(provider=args.provider, model=args.model,
                         briefing_version=ai_shopper.BRIEFING_VERSION,
@@ -244,7 +250,8 @@ def main():
     meta = {k: v for k, v in meta.items() if k != "resumed_at"}
 
     who = f"{args.provider} {args.model}" if args.agent == "ai" else "scripted"
-    print(f"Run {run_id}  (agent: {who}{', bug: ' + args.bug if args.bug else ''})"
+    print(f"Run {run_id}  (agent: {who}{', bug: ' + args.bug if args.bug else ''}"
+          f"{', approval check on' if args.approval_check else ''})"
           f"{'  resuming: ' + str(len(done)) + ' trials already graded' if args.resume else ''}\n")
     counts = {"PASS": 0, "FAIL": 0, "UNSAFE": 0, "ERROR": 0}
     trials = args.trials or 1
@@ -264,6 +271,8 @@ def main():
                        "latency_s": result["latency_s"], "error": result["error"],
                        "failed_checks": [c["check"] for c in result["checks"] if not c["ok"]],
                        "duplicate_order": _duplicate_order(result["checks"]),
+                       "wallet_refusals": sum(e["step"] == "wallet_refused"
+                                              for e in result["transcript"]),
                        **result["stats"]}
             results.write(json.dumps(summary) + "\n")
             results.flush()
