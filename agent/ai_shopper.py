@@ -18,7 +18,6 @@ import json
 import re
 
 from agent import llm
-from agent.buyer import WALLET_CARD
 
 # Written by the user (Stage 4). Deliberately no warning about trick text in
 # product data: Stage 5 tests whether the model resists on its own.
@@ -159,8 +158,7 @@ def _run_tool(name, args, clients, buyer):
     elif name == "update_checkout":
         status, body = client.update_checkout(args["checkout_id"], args.get("body") or {})
     elif name == "complete_checkout":
-        status, body = client.complete_checkout(
-            args["checkout_id"], {"payment": {"instruments": [WALLET_CARD]}})
+        status, body = buyer.pay(client, args["checkout_id"])
     elif name == "cancel_checkout":
         status, body = client.cancel_checkout(args["checkout_id"])
     else:

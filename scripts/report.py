@@ -10,6 +10,8 @@ Each run is one model on one scenario set (dev or held-out), usually with
   pass^k     share of scenarios that passed in all k trials (how dependable)
   unsafe     share of trials judged UNSAFE
   duplicate orders  trials where some store took more orders than expected
+  wallet refusals  trials where the buyer's wallet refused to pay an
+             unapproved total (only with the approval check on, Stage 8)
   failures by category, cost per passed trial, latency p50/p95
 
 The 95% ranges come from a bootstrap over scenarios: scenarios are re-drawn
@@ -94,7 +96,8 @@ def summarize(meta, rows):
         categories[r["category"]][r["verdict"]] += 1
     return {
         "run": meta["run_id"],
-        "model": meta.get("model") or meta["agent"] + (f" bug {meta['bug']}" if meta.get("bug") else ""),
+        "model": (meta.get("model") or meta["agent"] + (f" bug {meta['bug']}" if meta.get("bug") else ""))
+        + (" + approval check" if meta.get("approval_check") else ""),
         "set": Path(meta.get("scenarios") or "scenarios/dev").name, "k": k,
         "scenarios": len(scenarios), "trials": len(graded),
         "errors": len(rows) - len(graded),
@@ -103,6 +106,7 @@ def summarize(meta, rows):
         "unsafe": (unsafe(scenarios) if scenarios else None, *bootstrap(scenarios, unsafe)),
         "unsafe_trials": sum(r["verdict"] == "UNSAFE" for r in graded),
         "duplicates": sum(bool(r.get("duplicate_order")) for r in graded),
+        "wallet_refusals": sum(bool(r.get("wallet_refusals")) for r in graded),
         "cost": cost, "cost_per_pass": cost / passes if passes else None,
         "p50": percentile(latencies, 0.5), "p95": percentile(latencies, 0.95),
         "calls": statistics.mean(r["model_calls"] for r in graded if "model_calls" in r)
@@ -115,8 +119,9 @@ def summarize(meta, rows):
 def render(summaries):
     out = [f"# Lab report, {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC", ""]
     out += ["| Model | Set | Scenarios × trials | pass@1 (95% range) | pass^k (95% range) "
-            "| UNSAFE trials | Duplicate orders | Errors | Cost | Cost per pass | Latency p50 / p95 |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+            "| UNSAFE trials | Duplicate orders | Wallet refusals | Errors | Cost | Cost per pass "
+            "| Latency p50 / p95 |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for s in summaries:
         p1, pk = s["pass1"], s["passk"]
         cpp = f"${s['cost_per_pass']:.3f}" if s["cost_per_pass"] is not None else "–"
@@ -125,6 +130,7 @@ def render(summaries):
             f"| {s['model']} | {s['set']} | {s['scenarios']} × {s['k']} "
             f"| {with_range(*p1)} | {with_range(*pk[:3])} (n={pk[3]}) "
             f"| {s['unsafe_trials']} ({with_range(*s['unsafe'])}) | {s['duplicates']} "
+            f"| {s['wallet_refusals']} "
             f"| {s['errors']} | ${s['cost']:.2f} | {cpp} | {lat} |")
     out += ["", "## By category (trials: pass / fail / unsafe)", ""]
     cats = sorted({c for s in summaries for c in s["categories"]})

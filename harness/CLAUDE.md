@@ -18,9 +18,10 @@ settings.
   `--trials N` (trial-major order: all of trial 1 first), `--temperature
   default` (leave it to the model), `--max-cost` (stop once the run's model
   calls cost this much; default $3), `--resume RUN_ID` (reuse the run's
-  settings, skip graded trials, retry ERRORs).
+  settings, skip graded trials, retry ERRORs), `--approval-check` (the buyer's
+  wallet pays only an approved total; run ids end `_approval-check`).
 - The run stops after 3 provider errors in a row (daily quota used up): resume
-  it later. Each summary line records `trial` and `duplicate_order`.
+  it later. Each summary line records `trial`, `duplicate_order` and `wallet_refusals`.
 - `scripts/report.py` turns runs into pass@1, pass^k (95% bootstrap ranges
   over scenarios), UNSAFE, duplicates, cost and latency.
 - Exit code is 0 only if every scenario passed.

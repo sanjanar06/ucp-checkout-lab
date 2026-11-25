@@ -73,7 +73,9 @@ they never clear, the trial is marked ERROR rather than FAIL.
 | Held-out set | add `--scenarios scenarios/heldout` |
 | Spending cap per run (default $3) | add `--max-cost 2` |
 | Finish a run cut short (daily quota, cap, outage) | `docker compose run --rm lab --resume <run_id>` |
+| Stage 8: the buyer's wallet pays only approved totals | add `--approval-check` to any run (scripted or AI) |
 | Report: pass@1, pass^3 with 95% ranges, UNSAFE, duplicates, cost, latency | `docker compose run --rm --entrypoint python lab scripts/report.py <run_id> [<run_id> ...]` |
+| Are two setups really different? (paired test, Holm-corrected) | `docker compose run --rm --entrypoint python lab scripts/compare.py NAME=<run_id>,<run_id> NAME=<run_id>,<run_id> [--pairs A:B]` |
 
 **Where things end up**
 
