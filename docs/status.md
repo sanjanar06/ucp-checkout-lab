@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-24.
+Last updated: 2026-11-25.
 
 | Stage | Status |
 | --- | --- |
@@ -11,7 +11,7 @@ Last updated: 2026-11-24.
 | 5. Store problems | ✅ Price changes, sell-outs, trick text and escalation; 23 dev + 15 held-out scenarios, honest scripted shopper passes all, every check proven with a deliberate bug; conformance 76 passed, 1 skipped (after a reset) |
 | 6. Network and multi-store problems | ✅ Network proxy (lost replies, duplicate-delivery check), two buyers one unit, bakery and gift shop (conformance on all three), carts across stores; scenarios 024–030; merged to main |
 | 7. Trustworthy numbers | Runs done: 4 models × 45 scenarios × 3 trials, trick text rerun with the fixed buyer (F14). Gemini 3.8 Flash 96%/93% (dev/held-out), Haiku 5.5 94%/98%, Luna 86%/96%, Nemotron 3 Ultra 80%/91%. Open: how to score sending all completes at once in 030 |
-| 8. Compare models, safety rules | Approval check runs done (F15): Haiku, Luna, Nemotron Ultra × 45 scenarios × 3 trials with the wallet check on. It stopped Nemotron's 3 hidden-shipping trials and never refused an honest checkout, but the other unsafe trials (030 all-at-once, fake cancel, escalation) are not about the amount. Significance check done (F16): no difference between models, or between switch on and off, is significant on 45 scenarios. Next: decide whether Stage 8 is done or needs more scenarios |
+| 8. Compare models, safety rules | ✅ Wallet approval check (F15): stops payments of an unapproved amount (Nemotron's 3 hidden-shipping trials), never refused an honest checkout; the other unsafe trials (030 all-at-once, fake cancel, escalation) aren't about the amount. Significance (F16): on 45 scenarios no model is measurably better than another, and the switch changes nothing measurable. Closed without more scenarios |
 | 9. Write up and share | — |
 
 ## Open items
@@ -41,10 +41,8 @@ Last updated: 2026-11-24.
      (done for every check so far).
   6. ~~Smarter pretend buyer for 014, 016, 017, 018, 021 (D41)~~ (done; reruns
      in F9).
-- Stage 8: approval check runs done (F15); significance check done (F16):
-  nothing is significant on 45 scenarios. Decide: close Stage 8, or add
-  scenarios where models differ (more trials won't help much). About $1.22 of
-  the $10 is left.
+- ~~Stage 8~~ (done 2026-11-25, F15, F16). Next: Stage 9 write-up. About
+  $1.22 of the $10 is left, kept in reserve.
 - Watch upstream issue [conformance#114](https://github.com/Universal-Commerce-Protocol/conformance/issues/114)
   (AP2 test passes with a fake mandate; our store passes it with no checks).
   Fix in progress by the issue's author: conformance#115 (reviewed positively 2026-10-30).
