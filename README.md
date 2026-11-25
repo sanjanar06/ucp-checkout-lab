@@ -4,6 +4,9 @@ A reliability benchmark: can AI agents take a saved multi-store cart through
 Universal Commerce Protocol (UCP) checkout correctly and safely when stores,
 the network and data misbehave? See [PLAN.md](PLAN.md).
 
+**Results:** the full report is [docs/report.md](docs/report.md); a short illustrated
+explainer for non-specialists is [docs/explainer.html](docs/explainer.html).
+
 Spec pinned to **UCP 2026-04-08** — see [versions.lock.toml](versions.lock.toml).
 
 ## Run commands
