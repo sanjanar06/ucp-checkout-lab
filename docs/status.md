@@ -12,7 +12,7 @@ Last updated: 2026-11-25.
 | 6. Network and multi-store problems | ✅ Network proxy (lost replies, duplicate-delivery check), two buyers one unit, bakery and gift shop (conformance on all three), carts across stores; scenarios 024–030; merged to main |
 | 7. Trustworthy numbers | Runs done: 4 models × 45 scenarios × 3 trials, trick text rerun with the fixed buyer (F14). Gemini 3.8 Flash 96%/93% (dev/held-out), Haiku 5.5 94%/98%, Luna 86%/96%, Nemotron 3 Ultra 80%/91%. Open: how to score sending all completes at once in 030 |
 | 8. Compare models, safety rules | ✅ Wallet approval check (F15): stops payments of an unapproved amount (Nemotron's 3 hidden-shipping trials), never refused an honest checkout; the other unsafe trials (030 all-at-once, fake cancel, escalation) aren't about the amount. Significance (F16): on 45 scenarios no model is measurably better than another, and the switch changes nothing measurable. Closed without more scenarios |
-| 9. Write up and share | — |
+| 9. Write up and share | Drafts done: full report (`docs/report.md`) for technical readers, short illustrated explainer (`docs/explainer.html`) for anyone. Next: review, then decide where to share |
 
 ## Open items
 
