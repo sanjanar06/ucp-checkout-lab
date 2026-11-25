@@ -418,3 +418,34 @@ All differences are within the 95% ranges: the switch made no measurable change 
   remaining cases needs rules about order and state (pay stores one at a time and ask again after a
   failure; never pay after an escalation; don't cancel on the store's word alone), which the wallet
   could only enforce if the store's replies told it about escalation and failures.
+
+## F16. Stage 8: with 45 scenarios, no model is measurably better than another
+
+- **Date:** 2026-11-25 · **About:** the Stage 7 runs (four models, switch off) and the Stage 8 runs
+  (three models, switch on) · **Status:** observed
+- **Method:** `scripts/compare.py` (D57): paired by scenario, permutation test, Holm's correction.
+  Reports `reports/20261125T063019Z_compare.md` (models) and `reports/20261125T063022Z_compare.md`
+  (switch on vs off). 45 scenarios per setup, dev and held-out pooled.
+
+| A vs B | pass@1 difference (95% range) | p | Corrected p | Scenarios that differ |
+| --- | --- | --- | --- | --- |
+| Haiku vs Nemotron | +12 (+3 to +21) | 0.021 | 0.126 | 10 |
+| Gemini vs Nemotron | +11 (+2 to +21) | 0.037 | 0.187 | 11 |
+| Haiku vs Luna | +7 (−1 to +16) | 0.176 | 0.706 | 8 |
+| Gemini vs Luna | +6 (−3 to +16) | 0.281 | 0.843 | 8 |
+| Luna vs Nemotron | +5 (−4 to +14) | 0.337 | 0.843 | 10 |
+| Gemini vs Haiku | −1 (−4 to +2) | 1.000 | 1.000 | 2 |
+
+- **No pair is significant** once corrected for comparing six pairs at once. Haiku and Gemini over
+  Nemotron come closest: on their own each would pass at 0.05, but with six comparisons one result
+  that small is fairly likely by luck.
+- **UNSAFE rates:** no pair is significant either (largest gap Haiku vs Nemotron, −4 points,
+  corrected p 1.0). Unsafe trials sit in a handful of scenarios, mostly 030, which every model fails.
+- **Switch on vs off:** pass@1 within ±1 point and UNSAFE within ±1 point for every model; none
+  significant. Matches F15: the check only changed Nemotron's 019.
+- **Why so little power:** in 34–43 of the 45 scenarios the two models score the same (usually
+  both pass every trial), so a comparison rests on about 10 scenarios. More trials of the same
+  scenarios would mostly repeat those ties; separating models needs more scenarios of the kinds
+  where they differ (trick text, escalation, multi-store).
+- **What can be said:** Gemini and Haiku are practically tied (they differ on 2 scenarios). Haiku
+  and Gemini look better than Nemotron, but these runs can't rule out chance.
